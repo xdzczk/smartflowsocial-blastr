@@ -24,6 +24,8 @@ export interface PublishJobMessage {
   resolvedRelays: string[];
   source: "sfs-app" | "external-client" | "api";
   receivedAt: number;
+  /** Correlation id from ingress request; used in queue consumer for log correlation. */
+  correlationId?: string;
 }
 
 /** Nostr event as serializable object (for queue payload). */

@@ -51,6 +51,8 @@ No outbound relay calls happen in the ingress path; only KV, D1, and queue send.
 - For each message: load job from D1 (if needed), open connections to each relay in `resolvedRelays`, send event, record each attempt in `blastr_publish_attempts`, update job status.
 - Ack on success; do not ack on failure so the queue retries.
 
+**Poison message handling:** `wrangler.toml` sets `max_retries` (and `visibility_timeout_ms`) for the queue consumer. When fanout throws, the message is not acked and Cloudflare Queues will retry. On each failure we log a **poison** event (JSON with `poison: true`, `jobId`, `eventId`, `error`, `timestamp`) so operators can find messages that repeatedly fail. After max retries, Cloudflare may drop the message or route to a dead-letter queue if configured. To inspect: filter logs for `poison: true`; fix data or relay issues and re-submit the event if needed.
+
 ### Core domain
 
 - **`src/core/EventValidator.ts`** — Event shape and signature validation; allowed kinds and max size.
@@ -104,6 +106,19 @@ KV is used for dedupe (event id) and optionally for rate-limit counters.
 - **Optional:** `API_TOKEN` (protects `/event` and WebSocket and admin), `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `ENVIRONMENT`.
 
 See `src/config/env.ts` and `wrangler.toml`.
+
+---
+
+## Observability
+
+**Metrics** are emitted as structured JSON log lines (prefix `[metric]`) so log pipelines can aggregate them. Each line has `@metric: true`, `name`, `type` (`counter` or `histogram`), and `value`; counters may include `reason` (e.g. for `events_rejected`).
+
+- **Counters:** `events_accepted`, `events_rejected` (reason: not_entitled, rate_limit, duplicate, no_relays, validation_error), `fanout_success`, `fanout_failed`, `queue_message_acked`, `queue_message_retried`.
+- **Histograms:** `ingress_latency_ms` (time to process POST /event), `fanout_latency_ms` (time to fan out one job to all relays).
+
+Implementation: `src/observability/metrics.ts`. Optional: wire to Cloudflare Workers Analytics Engine when the binding is available.
+
+**Correlation:** The same correlation id is set on the ingress request (e.g. `X-Correlation-ID`) and passed in the queue message payload; the queue consumer sets it on the logger so "ingress request" and "queue processing for job X" can be correlated in logs.
 
 ---
 

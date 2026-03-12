@@ -2,6 +2,7 @@ export interface Logger {
   info(message: string, meta?: Record<string, unknown>): void;
   warn(message: string, meta?: Record<string, unknown>): void;
   error(message: string, meta?: Record<string, unknown>): void;
+  getCorrelationId(): string | null;
 }
 
 /** Build a single structured log object for aggregation (level, correlationId, message, ...meta). */
@@ -33,6 +34,10 @@ export class ConsoleLogger implements Logger {
 
   setCorrelationId(id: string): void {
     this.correlationId = id;
+  }
+
+  getCorrelationId(): string | null {
+    return this.correlationId;
   }
 
   info(message: string, meta?: Record<string, unknown>): void {

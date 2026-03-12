@@ -67,13 +67,14 @@ Ensure `pnpm prepare` has been run (it runs automatically after `pnpm install`).
 
 1. Branch from `main` (or `master`) and keep changes focused.
 2. Run `pnpm validate` and `pnpm test` (and ideally `pnpm test:coverage`) before pushing.
-3. Ensure CI passes (validate, unit tests, integration tests, coverage).
+3. Ensure CI passes (validate, unit tests, integration tests, security tests, coverage with thresholds).
 4. Keep the PR description clear: what changed and why.
 
 ## Documentation
 
 - Update the README or `docs/` if you change behavior, config, or APIs.
 - The design and architecture are described in `docs/SFS_BROADCAST_RELAY_DESIGN.md` and `docs/ARCHITECTURE.md`; align with those when touching core flow or data model.
+- **Changelog:** Add an entry under the **Unreleased** section in [CHANGELOG.md](../CHANGELOG.md) for any user-facing or breaking change (API, config, behavior). Releases follow semver; tags are `v1.0.0`, etc.
 
 ## Questions
 

@@ -79,17 +79,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SFS_BROADCAST_RELAY_D
 
 ## Tech stack
 
-| Layer        | Technology |
-|-------------|------------|
-| Runtime     | Cloudflare Workers (Node compat) |
-| Language    | TypeScript (strict, ES2022) |
-| Database    | Cloudflare D1 (SQLite) |
-| Cache / KV  | Cloudflare KV (dedupe, optional rate-limit) |
-| Queue       | Cloudflare Queues |
+| Layer       | Technology                                                                  |
+| ----------- | --------------------------------------------------------------------------- |
+| Runtime     | Cloudflare Workers (Node compat)                                            |
+| Language    | TypeScript (strict, ES2022)                                                 |
+| Database    | Cloudflare D1 (SQLite)                                                      |
+| Cache / KV  | Cloudflare KV (dedupe, optional rate-limit)                                 |
+| Queue       | Cloudflare Queues                                                           |
 | Nostr       | [nostr-tools](https://github.com/nostr-dev-kit/ndk) (parsing, verification) |
-| Tests       | Vitest (unit, integration, coverage) |
-| Lint/format | ESLint (flat config), Prettier |
-| Git hooks   | Husky + lint-staged |
+| Tests       | Vitest (unit, integration, coverage)                                        |
+| Lint/format | ESLint (flat config), Prettier                                              |
+| Git hooks   | Husky + lint-staged                                                         |
 
 ---
 
@@ -119,19 +119,19 @@ Then open the worker URL (e.g. `http://localhost:8787`). Use `GET /` with `Accep
 
 ## Project structure
 
-| Path | Purpose |
-|------|---------|
-| `src/index.ts` | Worker entry: `fetch` (HTTP/WebSocket routing) and `queue` (publish-job consumer). |
-| `src/config/` | Environment validation (`env.ts`). |
-| `src/core/` | Domain logic: event validation, relay catalog, policy resolution. |
-| `src/adapters/` | Nostr adapter (event parsing/verification via nostr-tools). |
-| `src/services/` | D1 (entitlements, policies, jobs, relays), jobs, dedupe (KV), rate-limit. |
-| `src/transport/` | HTTP handlers (publish, NIP-11), admin API, pipeline (ingress), queue producer/consumer, WebSocket relay. |
-| `src/middleware/` | CORS (preflight and headers). |
-| `src/errors.ts`, `types.ts`, `logger.ts` | Shared error codes, types, logging. |
-| `tests/` | Unit, integration, and optional security tests (mirrors `src/` layout). |
-| `migrations/` | D1 SQL migrations (blastr tables, seed system relays). |
-| `docs/` | Design and architecture documentation. |
+| Path                                     | Purpose                                                                                                   |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `src/index.ts`                           | Worker entry: `fetch` (HTTP/WebSocket routing) and `queue` (publish-job consumer).                        |
+| `src/config/`                            | Environment validation (`env.ts`).                                                                        |
+| `src/core/`                              | Domain logic: event validation, relay catalog, policy resolution.                                         |
+| `src/adapters/`                          | Nostr adapter (event parsing/verification via nostr-tools).                                               |
+| `src/services/`                          | D1 (entitlements, policies, jobs, relays), jobs, dedupe (KV), rate-limit.                                 |
+| `src/transport/`                         | HTTP handlers (publish, NIP-11), admin API, pipeline (ingress), queue producer/consumer, WebSocket relay. |
+| `src/middleware/`                        | CORS (preflight and headers).                                                                             |
+| `src/errors.ts`, `types.ts`, `logger.ts` | Shared error codes, types, logging.                                                                       |
+| `tests/`                                 | Unit, integration, and optional security tests (mirrors `src/` layout).                                   |
+| `migrations/`                            | D1 SQL migrations (blastr tables, seed system relays).                                                    |
+| `docs/`                                  | Design and architecture documentation.                                                                    |
 
 ---
 
@@ -139,24 +139,24 @@ Then open the worker URL (e.g. `http://localhost:8787`). Use `GET /` with `Accep
 
 ### Public endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | NIP-11 relay info when `Accept: application/nostr+json`; otherwise plain text. |
-| `GET` | `/health` | Health check. Returns `{ "status": "ok", "timestamp": "…" }`. |
-| `POST` | `/event` | Submit a Nostr event. Body: event object or `["EVENT", event]`. Returns Nostr `["OK", event_id, accepted, message]`. |
-| `GET` / `WebSocket` | `/` or `/ws` | Nostr WebSocket relay (event submission). |
+| Method              | Path         | Description                                                                                                          |
+| ------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `GET`               | `/`          | NIP-11 relay info when `Accept: application/nostr+json`; otherwise plain text.                                       |
+| `GET`               | `/health`    | Health check. Returns `{ "status": "ok", "timestamp": "…" }`.                                                        |
+| `POST`              | `/event`     | Submit a Nostr event. Body: event object or `["EVENT", event]`. Returns Nostr `["OK", event_id, accepted, message]`. |
+| `GET` / `WebSocket` | `/` or `/ws` | Nostr WebSocket relay (event submission).                                                                            |
 
 When `API_TOKEN` is set, `/event` and WebSocket upgrade require `Authorization: Bearer <token>` or `X-API-TOKEN: <token>`.
 
 ### Admin API (requires `API_TOKEN`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `PUT` | `/admin/entitlements/<pubkey>` | Create or update entitlement (body: `plan_tier`, `status`, optional `rate_limit_profile`). |
-| `GET` | `/admin/users/<pubkey>/policy` | Get user relay policy. |
-| `PUT` | `/admin/users/<pubkey>/policy` | Set user policy (body: `mode`, `enabled`, etc.). |
-| `POST` | `/admin/users/<pubkey>/relays` | Add a relay to policy (body: `relay_url`, `action`). |
-| `DELETE` | `/admin/users/<pubkey>/relays?relay_url=...` | Remove a relay from policy. |
+| Method   | Path                                         | Description                                                                                |
+| -------- | -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `PUT`    | `/admin/entitlements/<pubkey>`               | Create or update entitlement (body: `plan_tier`, `status`, optional `rate_limit_profile`). |
+| `GET`    | `/admin/users/<pubkey>/policy`               | Get user relay policy.                                                                     |
+| `PUT`    | `/admin/users/<pubkey>/policy`               | Set user policy (body: `mode`, `enabled`, etc.).                                           |
+| `POST`   | `/admin/users/<pubkey>/relays`               | Add a relay to policy (body: `relay_url`, `action`).                                       |
+| `DELETE` | `/admin/users/<pubkey>/relays?relay_url=...` | Remove a relay from policy.                                                                |
 
 See [docs/API.md](docs/API.md) for request/response details.
 
@@ -208,16 +208,16 @@ Configure producer and consumer in `wrangler.toml` (see existing `[[queues.produ
 
 ## Development
 
-| Command | Description |
-|--------|-------------|
-| `pnpm start` | Start local dev server (`wrangler dev`). |
-| `pnpm validate` | Format check + lint + typecheck. |
-| `pnpm typecheck` | `tsc --noEmit`. |
-| `pnpm lint` | ESLint with cache. |
-| `pnpm lint:fix` | ESLint with auto-fix. |
-| `pnpm format` | Prettier write. |
-| `pnpm format:check` | Prettier check. |
-| `pnpm deploy` | Deploy to Cloudflare (`wrangler deploy`). |
+| Command             | Description                               |
+| ------------------- | ----------------------------------------- |
+| `pnpm start`        | Start local dev server (`wrangler dev`).  |
+| `pnpm validate`     | Format check + lint + typecheck.          |
+| `pnpm typecheck`    | `tsc --noEmit`.                           |
+| `pnpm lint`         | ESLint with cache.                        |
+| `pnpm lint:fix`     | ESLint with auto-fix.                     |
+| `pnpm format`       | Prettier write.                           |
+| `pnpm format:check` | Prettier check.                           |
+| `pnpm deploy`       | Deploy to Cloudflare (`wrangler deploy`). |
 
 Staging: `wrangler deploy --env staging` (uses `env.staging` in `wrangler.toml`).
 
@@ -225,14 +225,14 @@ Staging: `wrangler deploy --env staging` (uses `env.staging` in `wrangler.toml`)
 
 ## Testing
 
-| Command | Description |
-|--------|-------------|
-| `pnpm test` | Run all tests. |
-| `pnpm test:unit` | Unit tests (core, services, utils, logger). |
+| Command                 | Description                                 |
+| ----------------------- | ------------------------------------------- |
+| `pnpm test`             | Run all tests.                              |
+| `pnpm test:unit`        | Unit tests (core, services, utils, logger). |
 | `pnpm test:integration` | Integration tests (transport, integration). |
-| `pnpm test:security` | Security tests. |
-| `pnpm test:watch` | Vitest watch mode. |
-| `pnpm test:coverage` | Vitest with coverage report. |
+| `pnpm test:security`    | Security tests.                             |
+| `pnpm test:watch`       | Vitest watch mode.                          |
+| `pnpm test:coverage`    | Vitest with coverage report.                |
 
 Coverage thresholds are enforced in `vitest.config.ts`.
 
@@ -247,10 +247,10 @@ Coverage thresholds are enforced in `vitest.config.ts`.
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | High-level architecture and data flow. |
-| [docs/API.md](docs/API.md) | API reference (public and admin). |
+| Document                                                                 | Description                                         |
+| ------------------------------------------------------------------------ | --------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                             | High-level architecture and data flow.              |
+| [docs/API.md](docs/API.md)                                               | API reference (public and admin).                   |
 | [docs/SFS_BROADCAST_RELAY_DESIGN.md](docs/SFS_BROADCAST_RELAY_DESIGN.md) | Product and design assessment, data model, phasing. |
 
 ---

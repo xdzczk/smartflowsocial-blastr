@@ -1,6 +1,9 @@
 import type { Env } from "../types";
 
 const KV_PREFIX = "ratelimit:pubkey:";
+const ADMIN_RATE_LIMIT_PREFIX = "ratelimit:admin:";
+const ADMIN_DEFAULT_REQUESTS = 60;
+const ADMIN_DEFAULT_WINDOW_SECONDS = 60;
 const DEFAULT_WINDOW_SECONDS = 60;
 const DEFAULT_REQUESTS_PER_WINDOW = 60;
 const MIN_WINDOW_SECONDS = 1;
@@ -65,6 +68,52 @@ export async function checkRateLimit(
 
   const key = `${KV_PREFIX}${pubkey}`;
   const now = Math.floor(Date.now() / 1000);
+  const windowStart = now - windowSeconds;
+
+  const raw = await env.PUBLISHED_NOTES.get(key, { type: "json" });
+  type Count = { count: number; windowStart: number };
+  const data = raw as Count | null;
+  let count = 0;
+  let start = windowStart;
+  if (data && typeof data === "object" && typeof data.count === "number") {
+    if (data.windowStart >= windowStart) {
+      count = data.count;
+      start = data.windowStart;
+    }
+  }
+
+  if (count >= requestsPerWindow) {
+    const retryAfter = Math.max(1, start + windowSeconds - now);
+    return { allowed: false, retryAfter };
+  }
+
+  const newCount = count + 1;
+  const ttlSeconds = Math.min(86400, windowSeconds * 2);
+  await env.PUBLISHED_NOTES.put(
+    key,
+    JSON.stringify({ count: newCount, windowStart: start }),
+    { expirationTtl: ttlSeconds },
+  );
+  return { allowed: true };
+}
+
+/**
+ * Check rate limit for admin routes (per IP or per token).
+ * Uses key admin:${identifier} with strict default (60/60s).
+ * Return 429 when exceeded.
+ */
+export async function checkAdminRateLimit(
+  request: Request,
+  env: Env,
+): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const identifier =
+    request.headers.get("CF-Connecting-IP") ??
+    request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ??
+    "unknown";
+  const key = `${ADMIN_RATE_LIMIT_PREFIX}${identifier}`;
+  const now = Math.floor(Date.now() / 1000);
+  const windowSeconds = ADMIN_DEFAULT_WINDOW_SECONDS;
+  const requestsPerWindow = ADMIN_DEFAULT_REQUESTS;
   const windowStart = now - windowSeconds;
 
   const raw = await env.PUBLISHED_NOTES.get(key, { type: "json" });

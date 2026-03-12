@@ -4,12 +4,19 @@ import type {
 } from "@cloudflare/workers-types";
 
 import { validateEnvironment } from "./config/env";
+import { checkReadiness } from "./health";
 import { ConsoleLogger } from "./logger";
 import {
   addCorsHeaders,
   getCorsConfig,
   handleCorsPreflight,
 } from "./middleware/cors";
+import { auditLog } from "./observability/audit";
+import {
+  recordQueueMessageAcked,
+  recordQueueMessageRetried,
+} from "./observability/metrics";
+import { checkAdminRateLimit } from "./services/rate-limit";
 import {
   requireAdminAuth,
   putEntitlement,
@@ -86,6 +93,22 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       );
     }
 
+    if (url.pathname === "/ready" && request.method === "GET") {
+      const readiness = await checkReadiness(env);
+      const status = readiness.ok ? 200 : 503;
+      return new Response(
+        JSON.stringify({
+          status: readiness.ok ? "ok" : "degraded",
+          checks: readiness.checks,
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
     if (url.pathname === "/" && request.method === "GET") {
       const accept = request.headers.get("Accept") ?? "";
       const wantsNostrJson =
@@ -138,11 +161,32 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       }
     }
 
-    // Admin: require API_TOKEN when set
+    // Admin: require API_TOKEN when set, rate limit, then dispatch
     const segments = url.pathname.split("/").filter(Boolean);
     if (segments[0] === "admin") {
       const authFailure = requireAdminAuth(request, env);
       if (authFailure) return authFailure;
+
+      const adminRate = await checkAdminRateLimit(request, env);
+      /* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive when mock returns undefined */
+      if (adminRate && !adminRate.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: "Too Many Requests",
+            code: "rate_limit_exceeded",
+            retry_after: adminRate.retryAfter,
+          }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              ...(adminRate.retryAfter != null && {
+                "Retry-After": String(adminRate.retryAfter),
+              }),
+            },
+          },
+        );
+      }
 
       if (
         segments[1] === "entitlements" &&
@@ -150,23 +194,52 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
         segments.length === 3
       ) {
         const pubkey = decodeURIComponent(segments[2]);
-        if (request.method === "PUT")
-          return putEntitlement(request, env, pubkey);
+        if (request.method === "PUT") {
+          const res = await putEntitlement(request, env, pubkey);
+          if (res.status === 200)
+            auditLog(request, "entitlement.upsert", { pubkey });
+          return res;
+        }
       }
 
       if (segments[1] === "users" && segments[2]) {
         const pubkey = decodeURIComponent(segments[2]);
         if (segments[3] === "policy" && segments.length === 4) {
           if (request.method === "GET") return getAdminUserPolicy(env, pubkey);
-          if (request.method === "PUT")
-            return putUserPolicy(request, env, pubkey);
+          if (request.method === "PUT") {
+            const res = await putUserPolicy(request, env, pubkey);
+            if (res.status === 200)
+              auditLog(request, "user_policy.upsert", { pubkey });
+            return res;
+          }
         }
         if (segments[3] === "relays" && segments.length === 4) {
-          if (request.method === "POST")
-            return postPolicyRelay(request, env, pubkey);
+          if (request.method === "POST") {
+            const res = await postPolicyRelay(request, env, pubkey);
+            if (res.status === 200) {
+              const body = await res.clone().json();
+              const relayUrl =
+                body && typeof body === "object" && "relay_url" in body
+                  ? String((body as { relay_url: unknown }).relay_url)
+                  : undefined;
+              auditLog(request, "policy_relay.add", {
+                pubkey,
+                relay_url: relayUrl,
+              });
+            }
+            return res;
+          }
           if (request.method === "DELETE") {
             const relayUrl = url.searchParams.get("relay_url");
-            if (relayUrl) return deletePolicyRelay(env, pubkey, relayUrl);
+            if (relayUrl) {
+              const res = await deletePolicyRelay(env, pubkey, relayUrl);
+              if (res.status === 200)
+                auditLog(request, "policy_relay.remove", {
+                  pubkey,
+                  relay_url: relayUrl,
+                });
+              return res;
+            }
           }
         }
       }
@@ -183,11 +256,22 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
   ): Promise<void> {
     const logger = new ConsoleLogger();
     for (const msg of batch.messages) {
+      const correlationId = msg.body.correlationId ?? `job-${msg.body.jobId}`;
+      logger.setCorrelationId(correlationId);
       try {
         await processQueueMessage(msg.body, env, logger);
+        recordQueueMessageAcked();
         msg.ack();
       } catch (err) {
+        recordQueueMessageRetried();
         logger.error("Fanout failed", { jobId: msg.body.jobId, error: err });
+        // Poison event: after max retries Cloudflare Queues may drop or DLQ; log for operators
+        logger.info("Poison message", {
+          poison: true,
+          jobId: msg.body.jobId,
+          eventId: msg.body.event.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
         // Do not ack: un-acked messages will be retried by the queue
       }
     }

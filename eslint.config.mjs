@@ -15,6 +15,7 @@ export default [
     ignores: [
       "node_modules/**",
       "build/**",
+      "coverage/**",
       ".wrangler/**",
       "rust/**",
       "*.config.js",
@@ -155,6 +156,7 @@ export default [
       "@typescript-eslint/no-unsafe-assignment": "warn",
       "@typescript-eslint/no-unsafe-member-access": "warn",
       "@typescript-eslint/no-unsafe-call": "warn",
+      "@typescript-eslint/consistent-type-assertions": "warn",
     },
   },
 ];

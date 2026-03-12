@@ -1,0 +1,497 @@
+openapi: 3.0.3
+info:
+  title: Blastr API
+  description: Blastr - SFS Broadcast Relay HTTP and WebSocket API (write-focused managed Nostr relay).
+  version: "1"
+
+servers:
+  - url: /
+    description: Relative to deployment origin
+
+paths:
+  /:
+    get:
+      summary: Relay discovery (NIP-11)
+      operationId: getRoot
+      parameters:
+        - name: Accept
+          in: header
+          schema:
+            type: string
+            example: application/nostr+json
+      responses:
+        "200":
+          description: NIP-11 JSON (Accept application/nostr+json) or plain text
+          content:
+            application/nostr+json:
+              schema:
+                $ref: "#/components/schemas/Nip11Info"
+            text/plain:
+              schema:
+                type: string
+                example: "Blastr relay. Use Nostr client with wss://... or POST /event"
+
+  /health:
+    get:
+      summary: Liveness probe
+      description: Cheap check; no dependency checks.
+      operationId: getHealth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /ready:
+    get:
+      summary: Readiness probe
+      description: Verifies D1, KV, and queue binding are reachable.
+      operationId: getReady
+      responses:
+        "200":
+          description: All checks passed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+        "503":
+          description: One or more checks failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+
+  /event:
+    post:
+      summary: Submit a Nostr event for publishing
+      operationId: postEvent
+      security:
+        - ApiToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/NostrEvent"
+                - type: array
+                  items: {}
+                  minItems: 2
+                  maxItems: 2
+                  description: 'Nostr format ["EVENT", event]'
+      responses:
+        "200":
+          description: Accepted (NIP-01 OK)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+                example: ["OK", "<event_id>", true, ""]
+        "400":
+          description: Validation, entitlement, rate limit, duplicate, or no relays
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    description: Nostr OK false
+                  - $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Missing or invalid API token (when API_TOKEN is set)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    options:
+      summary: CORS preflight
+      operationId: optionsEvent
+      responses:
+        "204":
+          description: CORS preflight response
+
+  /admin/entitlements/{pubkey}:
+    put:
+      summary: Create or update entitlement for a pubkey
+      operationId: putEntitlement
+      security:
+        - ApiToken: []
+      parameters:
+        - name: pubkey
+          in: path
+          required: true
+          schema:
+            type: string
+            description: Hex-encoded Nostr pubkey
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntitlementBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntitlementResponse"
+        "400":
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /admin/users/{pubkey}/policy:
+    get:
+      summary: Get relay policy for a pubkey
+      operationId: getAdminUserPolicy
+      security:
+        - ApiToken: []
+      parameters:
+        - name: pubkey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPolicyResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    put:
+      summary: Set relay policy for a pubkey
+      operationId: putUserPolicy
+      security:
+        - ApiToken: []
+      parameters:
+        - name: pubkey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPolicyBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPolicyPutResponse"
+        "400":
+          description: Invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /admin/users/{pubkey}/relays:
+    post:
+      summary: Add a relay to the pubkey policy
+      operationId: postPolicyRelay
+      security:
+        - ApiToken: []
+      parameters:
+        - name: pubkey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyRelayBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyRelayResponse"
+        "400":
+          description: Invalid JSON or missing relay_url
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    delete:
+      summary: Remove a relay from the pubkey policy
+      operationId: deletePolicyRelay
+      security:
+        - ApiToken: []
+      parameters:
+        - name: pubkey
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: relay_url
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyRelayDeleteResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+components:
+  securitySchemes:
+    ApiToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Bearer <API_TOKEN> or use X-API-TOKEN header"
+    XApiToken:
+      type: apiKey
+      in: header
+      name: X-API-TOKEN
+
+  schemas:
+    Nip11Info:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Blastr
+        description:
+          type: string
+        supported_nips:
+          type: array
+          items:
+            type: integer
+        limitation:
+          type: object
+          properties:
+            write:
+              type: boolean
+            read:
+              type: boolean
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+
+    ReadyResponse:
+      type: object
+      required:
+        - status
+        - checks
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        checks:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: boolean
+              - type: string
+          description: db, kv, queue - true or error message
+        timestamp:
+          type: string
+          format: date-time
+
+    NostrEvent:
+      type: object
+      required:
+        - id
+        - pubkey
+        - created_at
+        - kind
+        - tags
+        - content
+        - sig
+      properties:
+        id:
+          type: string
+        pubkey:
+          type: string
+        created_at:
+          type: integer
+        kind:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+        content:
+          type: string
+        sig:
+          type: string
+
+    ErrorBody:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+
+    EntitlementBody:
+      type: object
+      properties:
+        plan_tier:
+          type: string
+          default: default
+        status:
+          type: string
+          enum: [active, grace, expired, suspended]
+          default: active
+        rate_limit_profile:
+          type: string
+          nullable: true
+
+    EntitlementResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        pubkey:
+          type: string
+        plan_tier:
+          type: string
+        status:
+          type: string
+
+    UserPolicyBody:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [blacklist, whitelist]
+        enabled:
+          type: boolean
+
+    UserPolicyPutResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        pubkey:
+          type: string
+        mode:
+          type: string
+        enabled:
+          type: integer
+
+    UserPolicyResponse:
+      type: object
+      properties:
+        pubkey:
+          type: string
+        policy:
+          type: object
+          nullable: true
+          properties:
+            mode:
+              type: string
+            enabled:
+              type: integer
+        relays:
+          type: array
+          items:
+            type: object
+            properties:
+              relay_url:
+                type: string
+              action:
+                type: string
+
+    PolicyRelayBody:
+      type: object
+      required:
+        - relay_url
+      properties:
+        relay_url:
+          type: string
+        action:
+          type: string
+          enum: [allow, block]
+          default: block
+
+    PolicyRelayResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        pubkey:
+          type: string
+        relay_url:
+          type: string
+        action:
+          type: string
+
+    PolicyRelayDeleteResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        pubkey:
+          type: string
+        relay_url:
+          type: string
+
+security: []
+# When API_TOKEN is set, use ApiToken or XApiToken; when not set, no auth.

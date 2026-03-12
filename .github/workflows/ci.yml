@@ -33,6 +33,12 @@ jobs:
       - name: Validate formatting, lint and typecheck
         run: pnpm validate
 
+      - name: Validate OpenAPI spec
+        run: pnpm exec -- npx --yes @redocly/cli@latest lint docs/openapi.yaml
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high
+
   unit-and-integration-tests:
     needs: lint-and-typecheck
     runs-on: ubuntu-latest
@@ -60,6 +66,9 @@ jobs:
 
       - name: Run integration tests
         run: pnpm test:integration
+
+      - name: Run security tests
+        run: pnpm test:security
 
   coverage:
     needs: unit-and-integration-tests

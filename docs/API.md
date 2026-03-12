@@ -1,6 +1,6 @@
 # Blastr API reference
 
-This document describes the HTTP and WebSocket API of the Blastr worker.
+This document describes the HTTP and WebSocket API of the Blastr worker. The API is considered **v1** (implicit). For versioning policy and future breaking changes, see [VERSIONING.md](VERSIONING.md).
 
 ## Authentication
 
@@ -34,7 +34,7 @@ If `API_TOKEN` is not set, the relay is publicly accessible (no auth).
 
 ### GET /health
 
-**Health check.**
+**Liveness probe.** Cheap check that the worker is running. No dependency checks (D1, KV, queue).
 
 **Response:** `200 OK`, `Content-Type: application/json`
 
@@ -44,6 +44,17 @@ If `API_TOKEN` is not set, the relay is publicly accessible (no auth).
   "timestamp": "2024-01-15T12:00:00.000Z"
 }
 ```
+
+---
+
+### GET /ready
+
+**Readiness probe.** Verifies that required bindings are reachable (D1, KV, queue binding). Use for load balancers or orchestrators that should only send traffic when the worker can use its dependencies.
+
+**Response:**
+
+- `200 OK` when all checks pass: `{ "status": "ok", "checks": { "db": true, "kv": true, "queue": true }, "timestamp": "..." }`
+- `503 Service Unavailable` when any check fails: same body shape with `"status": "degraded"` and `checks` indicating which dependency failed (value is `true` or an error message string).
 
 ---
 
@@ -105,11 +116,11 @@ All admin responses are JSON (`Content-Type: application/json`).
 
 **Request:** JSON body
 
-| Field               | Type   | Required | Description                                      |
-|---------------------|--------|----------|--------------------------------------------------|
-| `plan_tier`         | string | No       | Default `"default"`                              |
-| `status`            | string | No       | One of `active`, `grace`, `expired`, `suspended`; default `active` |
-| `rate_limit_profile`| string \| null | No | Optional profile key or null                     |
+| Field                | Type           | Required | Description                                                        |
+| -------------------- | -------------- | -------- | ------------------------------------------------------------------ |
+| `plan_tier`          | string         | No       | Default `"default"`                                                |
+| `status`             | string         | No       | One of `active`, `grace`, `expired`, `suspended`; default `active` |
+| `rate_limit_profile` | string \| null | No       | Optional profile key or null                                       |
 
 **Response:** `200 OK`
 
@@ -139,9 +150,7 @@ All admin responses are JSON (`Content-Type: application/json`).
     "mode": "blacklist",
     "enabled": 1
   },
-  "relays": [
-    { "relay_url": "wss://...", "action": "block" }
-  ]
+  "relays": [{ "relay_url": "wss://...", "action": "block" }]
 }
 ```
 
@@ -155,10 +164,10 @@ All admin responses are JSON (`Content-Type: application/json`).
 
 **Request:** JSON body
 
-| Field    | Type   | Required | Description                          |
-|----------|--------|----------|--------------------------------------|
-| `mode`   | string | No       | `"blacklist"` or `"whitelist"`; default `blacklist` |
-| `enabled`| boolean| No       | Default `true` (stored as 1/0)       |
+| Field     | Type    | Required | Description                                         |
+| --------- | ------- | -------- | --------------------------------------------------- |
+| `mode`    | string  | No       | `"blacklist"` or `"whitelist"`; default `blacklist` |
+| `enabled` | boolean | No       | Default `true` (stored as 1/0)                      |
 
 **Response:** `200 OK`
 
@@ -181,9 +190,9 @@ All admin responses are JSON (`Content-Type: application/json`).
 
 **Request:** JSON body
 
-| Field       | Type   | Required | Description              |
-|-------------|--------|----------|--------------------------|
-| `relay_url` | string | Yes      | Relay URL (e.g. wss://…) |
+| Field       | Type   | Required | Description                             |
+| ----------- | ------ | -------- | --------------------------------------- |
+| `relay_url` | string | Yes      | Relay URL (e.g. wss://…)                |
 | `action`    | string | No       | `"allow"` or `"block"`; default `block` |
 
 **Response:** `200 OK`
@@ -223,15 +232,15 @@ All admin responses are JSON (`Content-Type: application/json`).
 
 These codes can appear in Nostr OK messages or in JSON error bodies:
 
-| Code                 | Meaning                          |
-|----------------------|----------------------------------|
-| `invalid_signature`  | Event signature verification failed |
-| `disallowed_kind`   | Event kind not in allow list     |
-| `event_too_large`   | Event exceeds max size          |
-| `not_entitled`      | Pubkey not active/grace         |
-| `rate_limit_exceeded` | Per-pubkey (or IP) limit exceeded |
-| `duplicate`         | Event id already seen            |
-| `no_relays_configured` | Resolved relay list empty     |
+| Code                   | Meaning                             |
+| ---------------------- | ----------------------------------- |
+| `invalid_signature`    | Event signature verification failed |
+| `disallowed_kind`      | Event kind not in allow list        |
+| `event_too_large`      | Event exceeds max size              |
+| `not_entitled`         | Pubkey not active/grace             |
+| `rate_limit_exceeded`  | Per-pubkey (or IP) limit exceeded   |
+| `duplicate`            | Event id already seen               |
+| `no_relays_configured` | Resolved relay list empty           |
 
 ---
 

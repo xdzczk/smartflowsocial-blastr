@@ -121,6 +121,7 @@ export async function runIngressPipeline(
     resolvedRelays,
   });
 
+  const correlationId = logger.getCorrelationId() ?? undefined;
   const message: PublishJobMessage = {
     jobId: String(jobId),
     event,
@@ -128,6 +129,7 @@ export async function runIngressPipeline(
     resolvedRelays,
     source,
     receivedAt: Date.now(),
+    ...(correlationId && { correlationId }),
   };
   await env.BLASTR_PUBLISH_QUEUE.send(message);
 

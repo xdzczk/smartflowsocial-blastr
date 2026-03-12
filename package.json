@@ -1,6 +1,6 @@
 {
   "name": "blastr",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.27.0",
   "engines": {
@@ -22,6 +22,7 @@
     "test:unit": "vitest run tests/core tests/services tests/utils tests/logger.test.ts",
     "test:integration": "vitest run tests/transport tests/integration",
     "test:security": "vitest run tests/security",
+    "test:e2e": "vitest run tests/e2e",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },

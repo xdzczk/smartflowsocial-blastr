@@ -1,4 +1,9 @@
 import type { Logger } from "../logger";
+import {
+  recordFanoutFailed,
+  recordFanoutLatencyMs,
+  recordFanoutSuccess,
+} from "../observability/metrics";
 import { getJobById } from "../services/db";
 import { createAttempt, updateJobStatus } from "../services/jobs";
 import type { Env, PublishJobMessage, SerializedNostrEvent } from "../types";
@@ -168,6 +173,7 @@ export async function processQueueMessage(
   env: Env,
   logger: Logger,
 ): Promise<void> {
+  const fanoutStartMs = Date.now();
   const { jobId, event, resolvedRelays } = body;
   const jobIdNum = Number.parseInt(jobId, 10);
   if (Number.isNaN(jobIdNum)) {
@@ -178,7 +184,7 @@ export async function processQueueMessage(
   const job = await getJobById(env.DB, jobIdNum);
   if (!job) {
     logger.warn("Job not found", { jobId });
-    return;
+    throw new Error(`Job not found: ${jobId}`);
   }
 
   await updateJobStatus(env.DB, jobIdNum, "processing", {
@@ -217,6 +223,10 @@ export async function processQueueMessage(
     success: successCount,
     failed: failedCount,
   });
+
+  if (finalStatus === "success") recordFanoutSuccess();
+  else recordFanoutFailed();
+  recordFanoutLatencyMs(Date.now() - fanoutStartMs);
 
   logger.info("Fanout complete", {
     jobId,
