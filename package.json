@@ -1,12 +1,64 @@
 {
-	"private": true,
-	"version": "0.0.0",
-	"scripts": {
-		"deploy": "wrangler publish",
-		"dev": "wrangler dev --local"
-	},
-	"devDependencies": {
-		"@miniflare/tre": "^3.0.0-next.8",
-		"wrangler": "^2.0.0"
-	}
+  "name": "blastr",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "start": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
+    "lint:fix": "eslint --fix .",
+    "lint:ci": "eslint . --format json --output-file eslint-report.json || exit 1",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "pnpm format:check && pnpm lint && pnpm typecheck",
+    "precheck": "pnpm lint && pnpm typecheck",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/core tests/services tests/utils tests/logger.test.ts",
+    "test:integration": "vitest run tests/transport tests/integration",
+    "test:security": "vitest run tests/security",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "lint-staged": {
+    "*.{ts}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "nostr-tools": "^2.19.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
+    "@vitest/coverage-v8": "^4.0.17",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-no-secrets": "^2.2.1",
+    "eslint-plugin-promise": "^7.2.1",
+    "eslint-plugin-sonarjs": "^3.0.5",
+    "eslint-plugin-unicorn": "^62.0.0",
+    "globals": "^17.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "3.7.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17",
+    "wrangler": "^3.114.17"
+  }
 }

@@ -1,100 +1,91 @@
-# blastr
+# Blastr — SFS Broadcast Relay
 
-A nostr cloudflare workers proxy relay that publishes to all known online relays.
+A **write-focused managed Nostr relay** for SmartFlowSocial. It accepts signed events over the Nostr relay protocol (WebSocket or POST), checks **pubkey-scoped entitlement** (paid subscription), applies the pubkey’s **relay policy** (blacklist/whitelist), and fans out to a bounded **system relay universe**.
 
-![blastr diagram](./docs/images/blastr-diagram.png)
+Behavior is determined by the **event author’s pubkey**, not by the client or session. Relay preferences set in SmartFlowSocial apply when the same user posts from any client (e.g. `wss://blastr.smartflow.social`).
 
-This takes advantage of the high availabilty of cloudflare serverless workers on the edge that are rust wasm-based with 0ms cold starts. Learn more about [cloudflare workers](https://workers.cloudflare.com/).
+See **[docs/SFS_BROADCAST_RELAY_DESIGN.md](docs/SFS_BROADCAST_RELAY_DESIGN.md)** for product and architecture details.
 
-This is write only for now and is compatible with nostr clients but also features a simple POST api endpoint at `/event`. All events get queued up to run in batches by another worker that spins up every 30s if there's any events lined up, or once a certain amount of events are queued up.
+## Stack
 
-This will help ensure that your events are broadcasted to as many places as possible.
+- **TypeScript** on **Cloudflare Workers** (fetch + queue)
+- **D1** for jobs, policy, entitlements, system relays
+- **KV** for dedupe and rate limiting
+- **Queues** for async fanout to downstream relays
 
 ## Development
 
-With `wrangler`, you can build, test, and deploy your Worker with the following commands:
+```sh
+# install dependencies
+pnpm install
+
+# typecheck, lint, format
+pnpm validate
+
+# run tests
+pnpm test
+pnpm test:unit
+pnpm test:integration
+pnpm test:coverage
+
+# local dev
+pnpm start          # wrangler dev
+
+# deploy
+pnpm deploy         # wrangler deploy
+```
+
+## Setup
+
+### D1
+
+Create a D1 database and run migrations:
 
 ```sh
-# install wrangler if you do not have it yet
-$ npm install -g wrangler
+wrangler d1 create blastr-db
+# Add the database_id to wrangler.toml under [[d1_databases]]
 
-# log into cloudflare if you havent before
-$ wrangler login
-
-# compiles your project to WebAssembly and will warn of any issues
-$ npm run build
-
-# run your Worker in an ideal development workflow (with a local server, file watcher & more)
-$ npm run dev
-
-# deploy your Worker globally to the Cloudflare network (update your wrangler.toml file for configuration)
-$ npm run deploy
+wrangler d1 execute blastr-db --remote --file=./migrations/0002_blastr_tables.sql
+wrangler d1 execute blastr-db --remote --file=./migrations/0003_seed_system_relays.sql
 ```
 
-## Staging
+For local dev, use `--local` instead of `--remote`.
 
-Production deployments happen automatically but staging is manually for now. Deploy whenever you need to test changes before merging to master.
+### KV
 
-```
-wrangler publish --env staging
-```
+Used for event dedupe and (optionally) rate-limit counters:
 
-### Setup
-
-There's a few cloudflare components that Blastr uses behind the scenes, namely a KV store and multiple queues to distribute the load.
-
-Right now some of these are hardcoded for us since they have to map from the `wrangler.toml` file to the rust codebase. Need a TODO for making this more dynamic.
-
-#### KV store
-
-This doesn't rebroadcast events that have already been broadcasted before. So we have a KV for that.
-
-We also have a KV for storing the NWC requests and responses to get around ephemeral events.
-
-```
+```sh
 wrangler kv:namespace create PUBLISHED_NOTES
 wrangler kv:namespace create PUBLISHED_NOTES --preview
-
-wrangler kv:namespace create NWC_REQUESTS
-wrangler kv:namespace create NWC_REQUESTS --preview
-
-wrangler kv:namespace create NWC_RESPONSES
-wrangler kv:namespace create NWC_RESPONSES --preview
 ```
 
-#### Queues
+Add the IDs to `wrangler.toml` under `kv_namespaces`.
 
-```
- wrangler queues create nostr-events-pub-1-b
- wrangler queues create nostr-events-pub-2-b
- wrangler queues create nostr-events-pub-3-b
- wrangler queues create nostr-events-pub-4-b
- wrangler queues create nostr-events-pub-5-b
- wrangler queues create nostr-events-pub-6-b
- wrangler queues create nostr-events-pub-7-b
- wrangler queues create nostr-events-pub-8-b
- wrangler queues create nostr-events-pub-9-b
- wrangler queues create nostr-events-pub-10-b
+### Queue
+
+Single queue for publish jobs:
+
+```sh
+wrangler queues create blastr-publish-jobs
 ```
 
-Read the latest `worker` crate documentation here: https://docs.rs/worker
+Configure the producer and consumer in `wrangler.toml` (see existing `[[queues.producers]]` and `[[queues.consumers]]`).
 
-### CICD
+## Endpoints
 
-There's an example workflow here for publishing on master branch pushes. You need to set `CF_API_TOKEN` in your github repo secrets first.
+- **GET /** — NIP-11 relay info (if `Accept: application/nostr+json`) or plain text.
+- **POST /event** — Submit a Nostr event (body: event object or `["EVENT", event]`). Returns Nostr `["OK", event_id, accepted, message]`.
+- **GET /health** — Health check (returns `{ "status": "ok" }`).
 
-You also should either remove or configure `wrangler.toml` to point to a custom domain of yours:
+## Configuration
 
-```
-routes = [
-    { pattern = "example.com/about", zone_id = "<YOUR_ZONE_ID>" } # replace with your info
-]
-```
+- **Entitlements** — Populate `blastr_entitlements` (e.g. from your subscription service). Only pubkeys with `status` in `active` or `grace` can publish.
+- **System relays** — Managed in `blastr_system_relays`. Seed data is in `migrations/0003_seed_system_relays.sql`.
+- **User policy** — Per-pubkey mode and allow/block list in `blastr_user_policies` and `blastr_policy_relays`. Default is blacklist with no blocked relays.
 
-and any other info in `wrangler.toml` that is custom to you, like the names / id's of queues or kv's.
+## CI/CD
 
-### WebAssembly
+- **CI** (`.github/workflows/ci.yml`) — On push/PR: validate, unit tests, integration tests, coverage.
+- **Deploy** — Configure `CF_API_TOKEN` and (optionally) routes in `wrangler.toml`, then `pnpm deploy` or your own workflow.
 
-`workers-rs` (the Rust SDK for Cloudflare Workers used in this template) is meant to be executed as compiled WebAssembly, and as such so **must** all the code you write and depend upon. All crates and modules used in Rust-based Workers projects have to compile to the `wasm32-unknown-unknown` triple.
-
-Read more about this on the [`workers-rs`](https://github.com/cloudflare/workers-rs) project README.

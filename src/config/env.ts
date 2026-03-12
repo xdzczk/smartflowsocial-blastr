@@ -1,0 +1,83 @@
+import type { Env } from "../types";
+
+function validateNumericEnv(
+  value: string | undefined,
+  name: string,
+  defaultValue: string,
+  logger: { warn: (_: string) => void },
+): void {
+  if (!value) return;
+  const num = parseInt(value, 10);
+  if (Number.isNaN(num) || num <= 0) {
+    logger.warn(
+      `Invalid ${name} value: ${value}. Using default: ${defaultValue}`,
+    );
+  }
+}
+
+/**
+ * Validates environment and bindings required for the Worker.
+ * @throws Error if required bindings are missing
+ */
+export function validateEnvironment(
+  env: Env,
+  logger: { warn: (_: string) => void },
+): void {
+  // Runtime checks for bindings (Env type assumes they exist; at runtime they may be missing)
+  const e = env as Partial<Env>;
+  if (!e.PUBLISHED_NOTES) {
+    throw new Error(
+      "Missing required binding: PUBLISHED_NOTES KV namespace. Run: wrangler kv:namespace create PUBLISHED_NOTES",
+    );
+  }
+  if (!e.DB) {
+    throw new Error(
+      "Missing required binding: DB (D1 database). Configure [[d1_databases]] in wrangler.toml",
+    );
+  }
+  if (!e.BLASTR_PUBLISH_QUEUE) {
+    throw new Error(
+      "Missing required binding: BLASTR_PUBLISH_QUEUE. Create queue with: wrangler queues create blastr-publish-jobs",
+    );
+  }
+  if (!env.API_TOKEN) {
+    logger.warn(
+      "API_TOKEN not set - relay is publicly accessible. Set API_TOKEN to protect the worker.",
+    );
+  }
+  validateNumericEnv(
+    env.RATE_LIMIT_REQUESTS,
+    "RATE_LIMIT_REQUESTS",
+    "100",
+    logger,
+  );
+  validateNumericEnv(
+    env.RATE_LIMIT_WINDOW_MS,
+    "RATE_LIMIT_WINDOW_MS",
+    "60000",
+    logger,
+  );
+  if (env.CORS_ENABLED === "true" && !env.CORS_ORIGINS) {
+    logger.warn(
+      "CORS_ENABLED is true but CORS_ORIGINS is not set. CORS will be disabled.",
+    );
+  }
+}
+
+/** Allowed Nostr event kinds for Phase 1 (0 = metadata, 1 = short note). */
+export const ALLOWED_KINDS = [0, 1] as const;
+
+/** Max event body size in bytes (64 KB). */
+export const MAX_EVENT_SIZE = 64 * 1024;
+
+/** Rejection messages for Nostr OK responses. */
+export const REJECTION_MESSAGES = {
+  restricted: "restricted: paid SmartFlowSocial subscription required",
+  pubkeyNotLinked: "pubkey not entitled / not linked",
+  duplicate: "duplicate",
+  noRelays: "no relays configured",
+  invalidSignature: "invalid signature",
+  disallowedKind: "disallowed event kind",
+  eventTooLarge: "event too large",
+  rateLimitExceeded: "rate limit exceeded",
+} as const;
