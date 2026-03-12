@@ -4,6 +4,30 @@ export interface Logger {
   error(message: string, meta?: Record<string, unknown>): void;
 }
 
+/** Build a single structured log object for aggregation (level, correlationId, message, ...meta). */
+function structuredPayload(
+  level: string,
+  message: string,
+  correlationId: string | null,
+  meta?: Record<string, unknown>,
+): string {
+  const payload: Record<string, unknown> = {
+    level,
+    message,
+    ...(correlationId && { correlationId }),
+    ...meta,
+  };
+  const err = payload["error"];
+  if (err && err instanceof Error) {
+    payload["error"] = {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+    };
+  }
+  return JSON.stringify(payload);
+}
+
 export class ConsoleLogger implements Logger {
   private correlationId: string | null = null;
 
@@ -11,22 +35,17 @@ export class ConsoleLogger implements Logger {
     this.correlationId = id;
   }
 
-  private prefix(): string {
-    return this.correlationId ? `[${this.correlationId}] ` : "";
-  }
-
   info(message: string, meta?: Record<string, unknown>): void {
-    const payload = meta ? ` ${JSON.stringify(meta)}` : "";
-    console.info(this.prefix() + message + payload);
+    console.info(structuredPayload("info", message, this.correlationId, meta));
   }
 
   warn(message: string, meta?: Record<string, unknown>): void {
-    const payload = meta ? ` ${JSON.stringify(meta)}` : "";
-    console.warn(this.prefix() + message + payload);
+    console.warn(structuredPayload("warn", message, this.correlationId, meta));
   }
 
   error(message: string, meta?: Record<string, unknown>): void {
-    const payload = meta ? ` ${JSON.stringify(meta)}` : "";
-    console.error(this.prefix() + message + payload);
+    console.error(
+      structuredPayload("error", message, this.correlationId, meta),
+    );
   }
 }

@@ -23,6 +23,8 @@ binding = "BLASTR_PUBLISH_QUEUE"
 queue = "blastr-publish-jobs"
 max_batch_size = 50
 max_batch_timeout = 10
+max_retries = 3
+visibility_timeout_ms = 30000
 
 [vars]
 ENVIRONMENT = "production"
@@ -46,5 +48,7 @@ binding = "BLASTR_PUBLISH_QUEUE"
 queue = "blastr-publish-jobs"
 max_batch_size = 50
 max_batch_timeout = 10
+max_retries = 3
+visibility_timeout_ms = 30000
 [env.staging.vars]
 ENVIRONMENT = "staging"

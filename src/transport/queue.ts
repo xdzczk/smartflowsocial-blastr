@@ -4,11 +4,65 @@ import { createAttempt, updateJobStatus } from "../services/jobs";
 import type { Env, PublishJobMessage, SerializedNostrEvent } from "../types";
 
 const RELAY_SEND_TIMEOUT_MS = 8_000;
+const FANOUT_CONCURRENCY = 8;
+const RELAY_MAX_RETRIES = 2;
+const RELAY_RETRY_DELAY_MS = 500;
+
+export type RelayErrorKind = "transient" | "permanent";
+
+/** Classify relay error for retry: transient errors are retried, permanent are not. */
+export function classifyRelayError(errorCode?: string): RelayErrorKind {
+  if (!errorCode) return "transient";
+  switch (errorCode) {
+    case "blocked":
+    case "invalid":
+    case "duplicate":
+      return "permanent";
+    case "timeout":
+    case "connection_error":
+    case "closed":
+    default:
+      return "transient";
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Run async tasks with bounded concurrency. Returns results in the same order as inputs.
+ */
+async function runWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let index = 0;
+
+  async function worker(): Promise<void> {
+    while (index < items.length) {
+      const i = index++;
+      const item = items[i];
+      if (item !== undefined) {
+        results[i] = await fn(item, i);
+      }
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
+}
 
 /**
  * Send one event to one relay via WebSocket, return { success, errorCode?, latencyMs }.
  */
-async function sendEventToRelay(
+async function sendEventToRelayOnce(
   relayUrl: string,
   event: SerializedNostrEvent,
 ): Promise<{ success: boolean; errorCode?: string; latencyMs: number }> {
@@ -86,6 +140,27 @@ async function sendEventToRelay(
 }
 
 /**
+ * Send one event to one relay with retries for transient errors only.
+ */
+async function sendEventToRelay(
+  relayUrl: string,
+  event: SerializedNostrEvent,
+): Promise<{ success: boolean; errorCode?: string; latencyMs: number }> {
+  let last: { success: boolean; errorCode?: string; latencyMs: number } = {
+    success: false,
+    errorCode: "error",
+    latencyMs: 0,
+  };
+  for (let attempt = 0; attempt <= RELAY_MAX_RETRIES; attempt++) {
+    last = await sendEventToRelayOnce(relayUrl, event);
+    if (last.success) return last;
+    if (classifyRelayError(last.errorCode) === "permanent") return last;
+    if (attempt < RELAY_MAX_RETRIES) await sleep(RELAY_RETRY_DELAY_MS);
+  }
+  return last;
+}
+
+/**
  * Process one queue message: load job (for jobId -> DB updates), fan out to resolved relays, record attempts, update job status.
  */
 export async function processQueueMessage(
@@ -111,18 +186,23 @@ export async function processQueueMessage(
     failed: 0,
   });
 
+  const results = await runWithConcurrency(
+    resolvedRelays,
+    FANOUT_CONCURRENCY,
+    (relayUrl) => sendEventToRelay(relayUrl, event),
+  );
+
   let successCount = 0;
   let failedCount = 0;
-  let attemptNumber = 0;
-
-  for (const relayUrl of resolvedRelays) {
-    attemptNumber += 1;
-    const result = await sendEventToRelay(relayUrl, event);
+  for (let i = 0; i < resolvedRelays.length; i++) {
+    const relayUrl = resolvedRelays[i];
+    const result = results[i];
+    if (relayUrl === undefined || result === undefined) continue;
     const status = result.success ? "ok" : "failed";
     await createAttempt(env.DB, {
       jobId: jobIdNum,
       relayUrl,
-      attemptNumber,
+      attemptNumber: i + 1,
       status,
       errorCode: result.errorCode ?? null,
       latencyMs: result.latencyMs,

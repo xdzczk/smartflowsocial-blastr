@@ -7,7 +7,12 @@ import {
 import { loadSystemRelayUniverse } from "../core/relay-catalog";
 import { BlastrError, ErrorCodes } from "../errors";
 import type { Logger } from "../logger";
-import { getEntitlement, getPolicyRelays, getUserPolicy } from "../services/db";
+import {
+  getEntitlement,
+  getJobByEventId,
+  getPolicyRelays,
+  getUserPolicy,
+} from "../services/db";
 import { isPublished, markPublished } from "../services/dedupe";
 import { createJob } from "../services/jobs";
 import { checkRateLimit } from "../services/rate-limit";
@@ -50,7 +55,9 @@ export async function runIngressPipeline(
     };
   }
 
-  const rateLimit = await checkRateLimit(event.pubkey, env);
+  const rateLimit = await checkRateLimit(event.pubkey, env, {
+    rateLimitProfile: entitlement.rate_limit_profile,
+  });
   if (!rateLimit.allowed) {
     return {
       ok: false,
@@ -98,14 +105,21 @@ export async function runIngressPipeline(
     };
   }
 
+  const existingJob = await getJobByEventId(env.DB, event.id);
+  if (existingJob) {
+    logger.info("Event already has job (idempotent)", {
+      eventId: event.id,
+      jobId: existingJob.id,
+    });
+    return { ok: true, jobId: existingJob.id, eventId: event.id };
+  }
+
   const jobId = await createJob(env.DB, {
     eventId: event.id,
     pubkey: event.pubkey,
     source,
     resolvedRelays,
   });
-
-  await markPublished(event.id, env.PUBLISHED_NOTES);
 
   const message: PublishJobMessage = {
     jobId: String(jobId),
@@ -116,6 +130,8 @@ export async function runIngressPipeline(
     receivedAt: Date.now(),
   };
   await env.BLASTR_PUBLISH_QUEUE.send(message);
+
+  await markPublished(event.id, env.PUBLISHED_NOTES);
 
   logger.info("Event accepted and queued", {
     eventId: event.id,

@@ -38,7 +38,10 @@ export default [
   {
     files: ["**/*.ts"],
     languageOptions: {
-      globals: { ...globals.node },
+      globals: {
+        ...globals.node,
+        WebSocketPair: "readonly",
+      },
       parser: tsParser,
       parserOptions: {
         ecmaVersion: 2022,

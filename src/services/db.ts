@@ -119,3 +119,95 @@ export async function getJobById(
   const row = await stmt.first<PublishJobRow>();
   return row ?? null;
 }
+
+export async function getJobByEventId(
+  db: D1Database,
+  eventId: string,
+): Promise<PublishJobRow | null> {
+  const stmt = db
+    .prepare(
+      `SELECT id, event_id, pubkey, source, received_at, status,
+              relay_count_target, relay_count_success, relay_count_failed, resolved_relays
+       FROM blastr_publish_jobs WHERE event_id = ? ORDER BY id DESC LIMIT 1`,
+    )
+    .bind(eventId);
+  const row = await stmt.first<PublishJobRow>();
+  return row ?? null;
+}
+
+export async function upsertEntitlement(
+  db: D1Database,
+  params: {
+    pubkey: string;
+    plan_tier: string;
+    status: EntitlementStatus;
+    rate_limit_profile?: string | null;
+  },
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db
+    .prepare(
+      `INSERT INTO blastr_entitlements (pubkey, plan_tier, status, rate_limit_profile, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(pubkey) DO UPDATE SET
+         plan_tier = excluded.plan_tier,
+         status = excluded.status,
+         rate_limit_profile = excluded.rate_limit_profile,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(
+      params.pubkey,
+      params.plan_tier,
+      params.status,
+      params.rate_limit_profile ?? null,
+      now,
+    )
+    .run();
+}
+
+export async function upsertUserPolicy(
+  db: D1Database,
+  params: { pubkey: string; mode: UserPolicyMode; enabled?: number },
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  const enabled = params.enabled ?? 1;
+  await db
+    .prepare(
+      `INSERT INTO blastr_user_policies (pubkey, mode, enabled, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(pubkey) DO UPDATE SET
+         mode = excluded.mode,
+         enabled = excluded.enabled,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(params.pubkey, params.mode, enabled, now)
+    .run();
+}
+
+export async function addPolicyRelay(
+  db: D1Database,
+  params: { pubkey: string; relay_url: string; action: PolicyRelayAction },
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await db
+    .prepare(
+      `INSERT INTO blastr_policy_relays (pubkey, relay_url, action, created_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(pubkey, relay_url) DO UPDATE SET action = excluded.action, created_at = excluded.created_at`,
+    )
+    .bind(params.pubkey, params.relay_url, params.action, now)
+    .run();
+}
+
+export async function removePolicyRelay(
+  db: D1Database,
+  pubkey: string,
+  relayUrl: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `DELETE FROM blastr_policy_relays WHERE pubkey = ? AND relay_url = ?`,
+    )
+    .bind(pubkey, relayUrl)
+    .run();
+}
