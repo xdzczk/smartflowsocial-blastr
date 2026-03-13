@@ -12,7 +12,18 @@ import type { Env } from "../../src/types";
 vi.mock("../../src/adapters/nostr", () => ({
   verifyEventSignature: vi.fn(),
 }));
-vi.mock("../../src/services/db");
+vi.mock("../../src/services/db", () => ({
+  getEntitlement: vi.fn(),
+  getUserPolicy: vi.fn(),
+  getPolicyRelays: vi.fn(),
+  getSystemRelays: vi.fn(),
+  getJobById: vi.fn(),
+  getJobByEventId: vi.fn().mockResolvedValue(null),
+  upsertEntitlement: vi.fn(),
+  upsertUserPolicy: vi.fn(),
+  addPolicyRelay: vi.fn(),
+  removePolicyRelay: vi.fn(),
+}));
 vi.mock("../../src/services/dedupe");
 vi.mock("../../src/services/jobs");
 vi.mock("../../src/services/rate-limit");
@@ -38,6 +49,10 @@ function mockEnv(overrides?: { queueSendRejects?: boolean }): Env {
       get: vi.fn().mockResolvedValue(null),
       put: vi.fn().mockResolvedValue(void 0),
     },
+    BLASTR_RATE_LIMIT: {
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(void 0),
+    },
     DB: {},
     BLASTR_PUBLISH_QUEUE: { send },
   } as unknown as Env;
@@ -49,7 +64,6 @@ describe("runIngressPipeline", () => {
   beforeEach(() => {
     vi.mocked(nostrAdapter.verifyEventSignature).mockReturnValue(true);
     vi.clearAllMocks();
-    vi.mocked(db.getJobByEventId).mockResolvedValue(null);
     vi.mocked(db.getEntitlement).mockResolvedValue({
       pubkey: validEvent.pubkey,
       plan_tier: "default",
@@ -73,7 +87,7 @@ describe("runIngressPipeline", () => {
         notes: null,
       },
     ]);
-    vi.mocked(jobs.createJob).mockResolvedValue(1);
+    vi.mocked(jobs.ensureJob).mockResolvedValue({ jobId: 1, inserted: true });
   });
 
   it("returns NOT_ENTITLED when getEntitlement returns null", async () => {
@@ -173,18 +187,7 @@ describe("runIngressPipeline", () => {
   });
 
   it("returns existing job id when event already has a job (idempotent)", async () => {
-    vi.mocked(db.getJobByEventId).mockResolvedValue({
-      id: 42,
-      event_id: validEvent.id,
-      pubkey: validEvent.pubkey,
-      source: SOURCE_EXTERNAL_CLIENT,
-      received_at: Math.floor(Date.now() / 1000),
-      status: "queued",
-      relay_count_target: 2,
-      relay_count_success: 0,
-      relay_count_failed: 0,
-      resolved_relays: "[]",
-    });
+    vi.mocked(jobs.ensureJob).mockResolvedValue({ jobId: 42, inserted: false });
     const env = mockEnv();
     const result = await runIngressPipeline(
       env,
@@ -197,7 +200,7 @@ describe("runIngressPipeline", () => {
       expect(result.jobId).toBe(42);
       expect(result.eventId).toBe(validEvent.id);
     }
-    expect(jobs.createJob).not.toHaveBeenCalled();
     expect(env.BLASTR_PUBLISH_QUEUE.send).not.toHaveBeenCalled();
+    expect(dedupe.markPublished).not.toHaveBeenCalled();
   });
 });

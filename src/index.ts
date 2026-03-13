@@ -32,23 +32,6 @@ import type { Env, PublishJobMessage } from "./types";
 
 const MIME_NOSTR_JSON = "application/nostr+json";
 
-/** Return 401 if API_TOKEN is set and request does not provide it. */
-function checkApiToken(request: Request, env: Env): Response | null {
-  if (!env.API_TOKEN) return null;
-  const authHeader = request.headers.get("Authorization");
-  const auth =
-    authHeader?.startsWith("Bearer ") === true
-      ? authHeader.slice(7)
-      : request.headers.get("X-API-TOKEN");
-  if (auth !== env.API_TOKEN) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized", code: "unauthorized" }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
-    );
-  }
-  return null;
-}
-
 function extractCorrelationId(request: Request): string {
   const headerId =
     request.headers.get("X-Correlation-ID") ??
@@ -132,14 +115,12 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       );
     }
 
-    // WebSocket upgrade (Nostr relay): path / or /ws (require API_TOKEN when set)
+    // WebSocket upgrade (Nostr relay): path / or /ws (no token; entitlement in pipeline)
     const upgradeHeader = request.headers.get("Upgrade");
     if (
       (url.pathname === "/" || url.pathname === "/ws") &&
       upgradeHeader === "websocket"
     ) {
-      const tokenFailure = checkApiToken(request, env);
-      if (tokenFailure) return tokenFailure;
       const pair = new WebSocketPair();
       const client = pair[0];
       const server = pair[1];
@@ -148,14 +129,12 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       return new Response(null, { status: 101, webSocket: client });
     }
 
-    // /event: CORS preflight (OPTIONS) and POST (require API_TOKEN when set for POST)
+    // /event: CORS preflight (OPTIONS) and POST (no token; entitlement in pipeline)
     if (url.pathname === "/event") {
       const corsConfig = getCorsConfig(env);
       const preflight = handleCorsPreflight(request, corsConfig);
       if (preflight) return addCorsHeaders(request, preflight, corsConfig);
       if (request.method === "POST") {
-        const tokenFailure = checkApiToken(request, env);
-        if (tokenFailure) return tokenFailure;
         const response = await publishHandler(request, env, logger);
         return addCorsHeaders(request, response, corsConfig);
       }

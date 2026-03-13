@@ -61,4 +61,36 @@ describe("EventValidator", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.code).toBe("invalid_signature");
   });
+
+  it("rejects when event shape has wrong types (e.g. id not string)", () => {
+    const r = validateEvent({
+      id: 123,
+      pubkey: "b".repeat(64),
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [],
+      content: "",
+      sig: "c".repeat(128),
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.code).toBe("invalid_signature");
+  });
+
+  it("rejects when event exceeds max size", () => {
+    const smallMax = 10;
+    const r = validateEvent(
+      {
+        id: "a".repeat(64),
+        pubkey: "b".repeat(64),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: "x".repeat(100),
+        sig: "c".repeat(128),
+      },
+      smallMax,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.code).toBe("event_too_large");
+  });
 });

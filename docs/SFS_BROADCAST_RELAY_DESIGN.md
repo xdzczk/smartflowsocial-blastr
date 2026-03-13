@@ -1,6 +1,6 @@
 # SFS Broadcast Relay — Design Assessment & Implementation Guide
 
-This document assesses the pubkey-scoped, policy-driven relay design and maps it to a TypeScript rewrite of the current Blastr codebase.
+This document assesses the pubkey-scoped, policy-driven relay design and maps it to the Blastr service (TypeScript implementation of the SFS broadcast relay).
 
 ---
 
@@ -22,7 +22,7 @@ Building this as a **managed publish infrastructure layer** for SmartFlowSocial 
 
 ## Current State vs. Target
 
-| Aspect                  | Current (Rust)                                           | Target (TS SFS Relay)                                                   |
+| Aspect                  | Previous (Rust)                                          | Current (Blastr / TypeScript)                                           |
 | ----------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------- |
 | **Policy**              | None — every event treated the same                      | Pubkey → entitlement + relay policy (blacklist/whitelist)               |
 | **Relay universe**      | `api.nostr.watch/v1/online` + 8 fallbacks (“all online”) | Bounded **system relay universe** (curated/hybrid, health, allow/block) |
@@ -33,7 +33,7 @@ Building this as a **managed publish infrastructure layer** for SmartFlowSocial 
 | **Ack**                 | OK after queue + KV write                                | OK = “accepted + queued”; delivery is async                             |
 | **Diagnostics**         | Minimal                                                  | Jobs + per-relay attempts, stored for diagnostics                       |
 
-The TS rewrite is not a port; it’s a re-platform with a new data model and new services (policy, relay catalog, entitlement).
+The Blastr service is a re-platform with a new data model and new services (policy, relay catalog, entitlement).
 
 ---
 
@@ -137,7 +137,7 @@ Avoid Durable Objects in v1 unless you need stateful connection coordination.
 - **blastr_policy_relays** — pubkey, relay_url, action (allow/block).
 - **blastr_system_relays** — relay_url, enabled, health_status, score, category, last_checked_at.
 - **blastr_publish_jobs** — event_id, pubkey, source, received_at, status, relay_count_target, relay_count_success/failed, **resolved_relays snapshot** (JSON or separate table).
-- **blastr_publish_attempts** — job_id, relay_url, attempt_number, status, error_code, latency_ms.
+- **blastr_publish_attempts** — job_id, relay_url, attempt_number (1-based retry attempt for that relay: 1 = first try, 2 = first retry, …), status, error_code, latency_ms.
 - **blastr_rate_counters** — per pubkey (and optionally per IP); use KV/Redis for real-time, optionally DB for analytics.
 
 ---
@@ -174,7 +174,7 @@ No outbound relay calls in this path; only KV/DB/cache and queue send.
 
 ## Phasing (From Spec, Slightly Tightened)
 
-**Phase 1 — TS rewrite, paid relay**
+**Phase 1 — Blastr service, paid relay**
 
 - TS Worker: WebSocket + POST `/event`, Nostr EVENT only.
 - Entitlement lookup (by pubkey); reject if not paid/linked.
@@ -205,7 +205,7 @@ Do **not** make “all available relays” mean “any relay ever discovered.”
 ## Summary
 
 - **Design is sound;** the pubkey-scoped, policy-driven model is the right abstraction for “works from other clients” and paid gating.
-- **Current codebase** is a good reference for “event in → queue → fanout,” but policy, entitlement, and relay universe are new; treat the TS rewrite as a new product with a new data model.
+- **Current codebase** is a good reference for “event in → queue → fanout,” but policy, entitlement, and relay universe are new; the Blastr service is built as the SFS broadcast relay with a new data model.
 - **Decide:** NWC in or out; entitlement sync vs. live subscription API; exact placement of policy/catalog (Blastr vs. SFS app).
 - **Implement:** Ingress = validate → entitlement → rate limit → resolve relays → enqueue job with snapshot → OK. Fanout = consume job → send to job’s relays → record attempts. Keep resolution logic shared and relay set bounded.
 

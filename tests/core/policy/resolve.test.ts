@@ -11,10 +11,11 @@ import type {
   UserPolicyRow,
 } from "../../../src/services/db";
 
-const WSS_A = "wss://a.com";
-const WSS_B = "wss://b.com";
-const WSS_C = "wss://c.com";
-const WSS_D = "wss://d.com";
+const WSS_PREFIX = "wss://";
+const WSS_A = `${WSS_PREFIX}a.com`;
+const WSS_B = `${WSS_PREFIX}b.com`;
+const WSS_C = `${WSS_PREFIX}c.com`;
+const WSS_D = `${WSS_PREFIX}d.com`;
 
 describe("resolveEffectiveRelays", () => {
   const systemRelays: SystemRelayRow[] = [
@@ -106,6 +107,42 @@ describe("resolveEffectiveRelays", () => {
     expect(result[1]).toBe(WSS_B);
     expect(result[2]).toBe(WSS_C);
   });
+
+  it("sorts by url when scores are equal (localeCompare branch)", () => {
+    const sameScoreRelays: SystemRelayRow[] = [
+      {
+        id: 1,
+        relay_url: "wss://z.com",
+        enabled: 1,
+        health_status: null,
+        score: 5,
+        category: null,
+        last_checked_at: null,
+        notes: null,
+      },
+      {
+        id: 2,
+        relay_url: "wss://a.com",
+        enabled: 1,
+        health_status: null,
+        score: 5,
+        category: null,
+        last_checked_at: null,
+        notes: null,
+      },
+    ];
+    const policy = getDefaultPolicy();
+    const result = resolveEffectiveRelays(sameScoreRelays, policy);
+    expect(result[0]).toBe("wss://a.com");
+    expect(result[1]).toBe("wss://z.com");
+  });
+
+  it("returns all enabled system relays when policy enabled is false", () => {
+    const policy = { ...getDefaultPolicy(), enabled: false };
+    const result = resolveEffectiveRelays(systemRelays, policy);
+    expect(result).toHaveLength(3);
+    expect(result).toContain(WSS_A);
+  });
 });
 
 describe("toUserPolicyInput", () => {
@@ -133,10 +170,22 @@ describe("toUserPolicyInput", () => {
     ];
     const out = toUserPolicyInput(policyRow, relayRows);
     expect(out.mode).toBe("whitelist");
+    expect(out.enabled).toBe(true);
     expect(out.relays).toHaveLength(1);
     expect(out.relays[0]).toEqual({
       relayUrl: "wss://x.com",
       action: "allow",
     });
+  });
+
+  it("maps enabled false when policy row enabled is 0", () => {
+    const policyRow: UserPolicyRow = {
+      pubkey: "pk",
+      mode: "blacklist",
+      enabled: 0,
+      updated_at: 0,
+    };
+    const out = toUserPolicyInput(policyRow, []);
+    expect(out.enabled).toBe(false);
   });
 });

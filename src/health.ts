@@ -19,11 +19,20 @@ export async function checkReadiness(env: Env): Promise<ReadinessResult> {
     checks["db"] = e instanceof Error ? e.message : String(e);
   }
 
+  let kvOk = true;
   try {
     await env.PUBLISHED_NOTES.get("health:ping");
-    checks["kv"] = true;
   } catch (e) {
+    kvOk = false;
     checks["kv"] = e instanceof Error ? e.message : String(e);
+  }
+  if (kvOk) {
+    try {
+      await env.BLASTR_RATE_LIMIT.get("health:ping");
+      checks["kv"] = true;
+    } catch (e) {
+      checks["kv"] = e instanceof Error ? e.message : String(e);
+    }
   }
 
   checks["queue"] = Boolean(env.BLASTR_PUBLISH_QUEUE);

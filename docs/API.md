@@ -1,17 +1,11 @@
 # Blastr API reference
 
-This document describes the HTTP and WebSocket API of the Blastr worker. The API is considered **v1** (implicit). For versioning policy and future breaking changes, see [VERSIONING.md](VERSIONING.md).
+SFS broadcast relay API. This document describes the HTTP and WebSocket API of the Blastr worker. The API is considered **v1** (implicit). For versioning policy and future breaking changes, see [VERSIONING.md](VERSIONING.md).
 
 ## Authentication
 
-When `API_TOKEN` is set in the environment:
-
-- **POST /event** and **WebSocket** upgrade require one of:
-  - `Authorization: Bearer <API_TOKEN>`
-  - `X-API-TOKEN: <API_TOKEN>`
-- **Admin** routes (`/admin/*`) use the same mechanism.
-
-If `API_TOKEN` is not set, the relay is publicly accessible (no auth).
+- **Relay** (POST /event and WebSocket): Does **not** use `API_TOKEN`. Access is gated by **pubkey entitlement** only (see ingress pipeline). No API token is required for publishing.
+- **Admin** routes (`/admin/*`): When `API_TOKEN` is set, require `Authorization: Bearer <API_TOKEN>` or `X-API-TOKEN: <API_TOKEN>`. If `API_TOKEN` is not set, admin routes are unprotected.
 
 ---
 
@@ -66,7 +60,7 @@ If `API_TOKEN` is not set, the relay is publicly accessible (no auth).
 
 - Method: `POST`
 - Body: JSON — either a raw Nostr event object, or a Nostr array: `["EVENT", <event>]`
-- Headers: If `API_TOKEN` is set, include `Authorization: Bearer <token>` or `X-API-TOKEN: <token>`. CORS is applied when `CORS_ENABLED` is set.
+- Headers: CORS is applied when `CORS_ENABLED` is set. No API token is required; entitlement is checked by pubkey.
 
 **Success response:** `200 OK`, `Content-Type: application/json`
 
@@ -90,7 +84,7 @@ Body is a Nostr OK message:
   - Rate limit exceeded
   - Duplicate event
   - No relays configured (e.g. whitelist with no allowed relays)
-- Status codes: `400` (validation, entitlement, rate limit, duplicate, no relays), `401` (missing/invalid API token when required), `500` (server error).
+- Status codes: `400` (validation, entitlement, rate limit, duplicate, no relays), `403` (not entitled), `500` (server error).
 
 ---
 
@@ -98,7 +92,15 @@ Body is a Nostr OK message:
 
 **Path:** `/` or `/ws` with `Upgrade: websocket`.
 
-Standard Nostr relay protocol. Clients send Nostr messages (e.g. `["EVENT", event]`); the relay accepts events and runs them through the same ingress pipeline as `POST /event`. When `API_TOKEN` is set, the upgrade request must include the same auth as above.
+Standard Nostr relay protocol. Clients send Nostr messages (e.g. `["EVENT", event]`); the relay accepts events and runs them through the same ingress pipeline as `POST /event`. No API token is required for the WebSocket upgrade; entitlement is enforced in the pipeline by pubkey.
+
+**WebSocket protocol (write-only):**
+
+- **Supported message:** Only `["EVENT", event]` is supported. The relay responds with NIP-01 `["OK", event_id, accepted, message]` (success or pipeline error).
+- **Invalid JSON:** The relay sends a single `["NOTICE", "invalid JSON"]` (or similar) so the client knows the message was rejected.
+- **Invalid format:** Valid JSON that is not a non-empty array of length ≥ 2, or whose first element is not a string, receives `["NOTICE", "invalid message format"]`.
+- **Unsupported message types:** `REQ`, `CLOSE`, or any other type than `EVENT` receives `["NOTICE", "unsupported: only EVENT is supported"]`.
+- **NIP-42 AUTH:** If the client sends `["AUTH", ...]`, the relay responds with `["NOTICE", "auth not required for this relay"]` (no challenge, no connection-level auth).
 
 ---
 
@@ -246,4 +248,4 @@ These codes can appear in Nostr OK messages or in JSON error bodies:
 
 ## CORS
 
-When `CORS_ENABLED` is set, CORS headers are applied to `/event` (and optionally admin) according to `CORS_ORIGINS`. OPTIONS preflight is handled for configured methods and headers.
+When `CORS_ENABLED` is set, CORS headers are applied to `/event` (and optionally admin) according to `CORS_ORIGINS`. OPTIONS preflight is handled for configured methods and headers. For allowed origins, CORS allows the request headers: `Content-Type`, `Authorization`, `X-API-TOKEN`, `X-Correlation-ID`, and `X-Request-ID`.

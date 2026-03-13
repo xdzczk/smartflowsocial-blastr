@@ -5,10 +5,20 @@ import { runIngressPipeline } from "../pipeline";
 
 const WS_SOURCE: PublishJobSource = "external-client";
 
+const NOTICE_INVALID_JSON = "invalid JSON";
+const NOTICE_INVALID_FORMAT = "invalid message format";
+const NOTICE_UNSUPPORTED = "unsupported: only EVENT is supported";
+const NOTICE_AUTH_NOT_REQUIRED = "auth not required for this relay";
+
+/** Send a NIP-01 NOTICE to the client. */
+function sendNotice(server: WebSocket, message: string): void {
+  server.send(JSON.stringify(["NOTICE", message]));
+}
+
 /**
  * Handle a single incoming WebSocket message (Nostr relay protocol).
  * Expects ["EVENT", event] and responds with ["OK", eventId, accepted, message].
- * Other message types (REQ, CLOSE, etc.) are ignored for write-only relay.
+ * Invalid JSON, bad format, unsupported types (REQ, CLOSE, etc.), and AUTH get NOTICE.
  */
 async function handleEventMessage(
   server: WebSocket,
@@ -20,16 +30,29 @@ async function handleEventMessage(
   try {
     raw = JSON.parse(event.data as string) as unknown;
   } catch {
+    sendNotice(server, NOTICE_INVALID_JSON);
     logger.warn("WS: Invalid JSON", {});
     return;
   }
 
   if (!Array.isArray(raw) || raw.length < 2) {
+    sendNotice(server, NOTICE_INVALID_FORMAT);
     return;
   }
 
-  const [type, payload] = raw as [string, unknown];
+  const [type, payload] = raw as [unknown, unknown];
+  if (typeof type !== "string") {
+    sendNotice(server, NOTICE_INVALID_FORMAT);
+    return;
+  }
+
+  if (type === "AUTH") {
+    sendNotice(server, NOTICE_AUTH_NOT_REQUIRED);
+    return;
+  }
+
   if (type !== "EVENT") {
+    sendNotice(server, NOTICE_UNSUPPORTED);
     return;
   }
 

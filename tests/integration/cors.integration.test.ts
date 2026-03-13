@@ -16,6 +16,10 @@ function corsTestEnv(): Env {
       get: vi.fn().mockResolvedValue(null),
       put: vi.fn().mockResolvedValue(void 0),
     },
+    BLASTR_RATE_LIMIT: {
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(void 0),
+    },
     DB: {},
     BLASTR_PUBLISH_QUEUE: { send: vi.fn().mockResolvedValue(void 0) },
     CORS_ENABLED: "true",
@@ -47,6 +51,11 @@ describe("CORS OPTIONS /event", () => {
     expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
       "POST",
     );
+    const allowHeaders = response.headers.get("Access-Control-Allow-Headers");
+    expect(allowHeaders).toContain("Authorization");
+    expect(allowHeaders).toContain("X-API-TOKEN");
+    const headerList = allowHeaders?.split(", ").map((h) => h.trim()) ?? [];
+    expect(headerList).not.toContain("API-TOKEN");
   });
 
   it("returns 403 for disallowed origin when CORS enabled", async () => {

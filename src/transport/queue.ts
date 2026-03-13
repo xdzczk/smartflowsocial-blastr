@@ -37,8 +37,9 @@ function sleep(ms: number): Promise<void> {
 
 /**
  * Run async tasks with bounded concurrency. Returns results in the same order as inputs.
+ * Exported so tests can restore after __setRunWithConcurrencyForTesting.
  */
-async function runWithConcurrency<T, R>(
+export async function runWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
   fn: (item: T, index: number) => Promise<R>,
@@ -62,6 +63,14 @@ async function runWithConcurrency<T, R>(
   );
   await Promise.all(workers);
   return results;
+}
+
+/** Test hook: override fanout so tests can assert on attemptNumber without real relay calls. */
+let _runWithConcurrencyImpl: typeof runWithConcurrency = runWithConcurrency;
+export function __setRunWithConcurrencyForTesting(
+  fn: typeof runWithConcurrency,
+): void {
+  _runWithConcurrencyImpl = fn;
 }
 
 /**
@@ -144,13 +153,22 @@ async function sendEventToRelayOnce(
   });
 }
 
+/** Result of sending one event to one relay (after retries). attemptNumber is 1-based try index (1 = first try, 2 = first retry, …). */
+export type SendEventToRelayResult = {
+  success: boolean;
+  errorCode?: string;
+  latencyMs: number;
+  attemptNumber: number;
+};
+
 /**
  * Send one event to one relay with retries for transient errors only.
+ * Returns attemptNumber = 1-based try that produced the result (1 = first try, 2 = first retry, …).
  */
 async function sendEventToRelay(
   relayUrl: string,
   event: SerializedNostrEvent,
-): Promise<{ success: boolean; errorCode?: string; latencyMs: number }> {
+): Promise<SendEventToRelayResult> {
   let last: { success: boolean; errorCode?: string; latencyMs: number } = {
     success: false,
     errorCode: "error",
@@ -158,11 +176,13 @@ async function sendEventToRelay(
   };
   for (let attempt = 0; attempt <= RELAY_MAX_RETRIES; attempt++) {
     last = await sendEventToRelayOnce(relayUrl, event);
-    if (last.success) return last;
-    if (classifyRelayError(last.errorCode) === "permanent") return last;
+    const attemptNumber = attempt + 1;
+    if (last.success) return { ...last, attemptNumber };
+    if (classifyRelayError(last.errorCode) === "permanent")
+      return { ...last, attemptNumber };
     if (attempt < RELAY_MAX_RETRIES) await sleep(RELAY_RETRY_DELAY_MS);
   }
-  return last;
+  return { ...last, attemptNumber: RELAY_MAX_RETRIES + 1 };
 }
 
 /**
@@ -192,7 +212,7 @@ export async function processQueueMessage(
     failed: 0,
   });
 
-  const results = await runWithConcurrency(
+  const results = await _runWithConcurrencyImpl(
     resolvedRelays,
     FANOUT_CONCURRENCY,
     (relayUrl) => sendEventToRelay(relayUrl, event),
@@ -208,7 +228,7 @@ export async function processQueueMessage(
     await createAttempt(env.DB, {
       jobId: jobIdNum,
       relayUrl,
-      attemptNumber: i + 1,
+      attemptNumber: result.attemptNumber,
       status,
       errorCode: result.errorCode ?? null,
       latencyMs: result.latencyMs,

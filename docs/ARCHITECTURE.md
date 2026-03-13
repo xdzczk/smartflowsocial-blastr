@@ -1,6 +1,6 @@
 # Blastr architecture
 
-This document describes the high-level architecture, data flow, and main components of Blastr.
+This document describes the high-level architecture, data flow, and main components of Blastr, the SmartFlowSocial broadcast relay.
 
 ## Overview
 
@@ -48,7 +48,7 @@ No outbound relay calls happen in the ingress path; only KV, D1, and queue send.
 ### Queue consumer (`src/transport/queue.ts`)
 
 - Receives batch of `PublishJobMessage` (job id, event, pubkey, resolvedRelays, source, receivedAt).
-- For each message: load job from D1 (if needed), open connections to each relay in `resolvedRelays`, send event, record each attempt in `blastr_publish_attempts`, update job status.
+- For each message: load job from D1 (if needed), open connections to each relay in `resolvedRelays`, send event (with per-relay retries), record each attempt in `blastr_publish_attempts` (one row per relay; `attempt_number` is the 1-based try that produced the outcome), update job status.
 - Ack on success; do not ack on failure so the queue retries.
 
 **Poison message handling:** `wrangler.toml` sets `max_retries` (and `visibility_timeout_ms`) for the queue consumer. When fanout throws, the message is not acked and Cloudflare Queues will retry. On each failure we log a **poison** event (JSON with `poison: true`, `jobId`, `eventId`, `error`, `timestamp`) so operators can find messages that repeatedly fail. After max retries, Cloudflare may drop the message or route to a dead-letter queue if configured. To inspect: filter logs for `poison: true`; fix data or relay issues and re-submit the event if needed.
@@ -94,16 +94,16 @@ Queue → consumer
 - **blastr_policy_relays** — pubkey, relay_url, action (allow | block).
 - **blastr_system_relays** — relay_url, enabled, health_status, score, category, last_checked_at.
 - **blastr_publish_jobs** — job id, event_id, pubkey, source, received_at, status, relay list snapshot, counts.
-- **blastr_publish_attempts** — job_id, relay_url, attempt_number, status, error_code, latency_ms.
+- **blastr_publish_attempts** — job_id, relay_url, attempt_number (1-based retry attempt for that relay: 1 = first try, 2 = first retry, …), status, error_code, latency_ms.
 
-KV is used for dedupe (event id) and optionally for rate-limit counters.
+KV: `PUBLISHED_NOTES` for dedupe (event id); `BLASTR_RATE_LIMIT` for rate-limit counters.
 
 ---
 
 ## Configuration and environment
 
-- **Bindings:** `PUBLISHED_NOTES` (KV), `DB` (D1), `BLASTR_PUBLISH_QUEUE` (Queue). Required; validated at startup.
-- **Optional:** `API_TOKEN` (protects `/event` and WebSocket and admin), `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `ENVIRONMENT`.
+- **Bindings:** `PUBLISHED_NOTES` (KV, dedupe), `BLASTR_RATE_LIMIT` (KV, rate limits), `DB` (D1), `BLASTR_PUBLISH_QUEUE` (Queue). Required; validated at startup.
+- **Optional:** `API_TOKEN` (protects admin routes only; relay is gated by pubkey entitlement), `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `ENVIRONMENT`.
 
 See `src/config/env.ts` and `wrangler.toml`.
 

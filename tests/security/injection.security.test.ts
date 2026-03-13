@@ -15,6 +15,10 @@ function envWithToken(): Env {
       get: vi.fn().mockResolvedValue(null),
       put: vi.fn().mockResolvedValue(void 0),
     },
+    BLASTR_RATE_LIMIT: {
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(void 0),
+    },
     DB: {},
     BLASTR_PUBLISH_QUEUE: { send: vi.fn().mockResolvedValue(void 0) },
     API_TOKEN: "secret",

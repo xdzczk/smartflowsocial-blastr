@@ -35,6 +35,10 @@ function envWithMocks(): Env {
       get: vi.fn().mockResolvedValue(null),
       put: vi.fn().mockResolvedValue(void 0),
     },
+    BLASTR_RATE_LIMIT: {
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(void 0),
+    },
     DB: {},
     BLASTR_PUBLISH_QUEUE: { send: vi.fn().mockResolvedValue(void 0) },
   } as unknown as Env;
@@ -66,7 +70,7 @@ describe("Rate limit enforcement", () => {
         notes: null,
       },
     ]);
-    vi.mocked(jobs.createJob).mockResolvedValue(1);
+    vi.mocked(jobs.ensureJob).mockResolvedValue({ jobId: 1, inserted: true });
   });
 
   it("POST /event returns 429 when rate limit check returns not allowed", async () => {

@@ -30,6 +30,11 @@ export function validateEnvironment(
       "Missing required binding: PUBLISHED_NOTES KV namespace. Run: wrangler kv:namespace create PUBLISHED_NOTES",
     );
   }
+  if (!e.BLASTR_RATE_LIMIT) {
+    throw new Error(
+      "Missing required binding: BLASTR_RATE_LIMIT KV namespace. Run: wrangler kv:namespace create BLASTR_RATE_LIMIT",
+    );
+  }
   if (!e.DB) {
     throw new Error(
       "Missing required binding: DB (D1 database). Configure [[d1_databases]] in wrangler.toml",
@@ -42,7 +47,7 @@ export function validateEnvironment(
   }
   if (!env.API_TOKEN) {
     logger.warn(
-      "API_TOKEN not set - relay is publicly accessible. Set API_TOKEN to protect the worker.",
+      "API_TOKEN not set - admin routes are unprotected. Set API_TOKEN to protect the admin API.",
     );
   }
   validateNumericEnv(

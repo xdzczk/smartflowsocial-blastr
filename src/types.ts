@@ -2,6 +2,7 @@ import type { D1Database, KVNamespace, Queue } from "@cloudflare/workers-types";
 
 export interface Env {
   PUBLISHED_NOTES: KVNamespace;
+  BLASTR_RATE_LIMIT: KVNamespace;
   DB: D1Database;
   BLASTR_PUBLISH_QUEUE: Queue<PublishJobMessage>;
   API_TOKEN?: string;

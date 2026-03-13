@@ -9,12 +9,11 @@ import { BlastrError, ErrorCodes } from "../errors";
 import type { Logger } from "../logger";
 import {
   getEntitlement,
-  getJobByEventId,
   getPolicyRelays,
   getUserPolicy,
 } from "../services/db";
 import { isPublished, markPublished } from "../services/dedupe";
-import { createJob } from "../services/jobs";
+import { ensureJob } from "../services/jobs";
 import { checkRateLimit } from "../services/rate-limit";
 import type { Env, PublishJobMessage, PublishJobSource } from "../types";
 
@@ -105,21 +104,20 @@ export async function runIngressPipeline(
     };
   }
 
-  const existingJob = await getJobByEventId(env.DB, event.id);
-  if (existingJob) {
-    logger.info("Event already has job (idempotent)", {
-      eventId: event.id,
-      jobId: existingJob.id,
-    });
-    return { ok: true, jobId: existingJob.id, eventId: event.id };
-  }
-
-  const jobId = await createJob(env.DB, {
+  const { jobId, inserted } = await ensureJob(env.DB, {
     eventId: event.id,
     pubkey: event.pubkey,
     source,
     resolvedRelays,
   });
+
+  if (!inserted) {
+    logger.info("Event already has job (idempotent)", {
+      eventId: event.id,
+      jobId,
+    });
+    return { ok: true, jobId, eventId: event.id };
+  }
 
   const correlationId = logger.getCorrelationId() ?? undefined;
   const message: PublishJobMessage = {

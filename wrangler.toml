@@ -1,11 +1,13 @@
 name = "blastr"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2026-03-13"
 compatibility_flags = ["nodejs_compat"]
 
-# KV for dedupe (event id)
+# KV: PUBLISHED_NOTES = dedupe (event id); BLASTR_RATE_LIMIT = rate limits
+# Create BLASTR_RATE_LIMIT with: wrangler kv:namespace create BLASTR_RATE_LIMIT (and --preview for preview_id)
 kv_namespaces = [
   { binding = "PUBLISHED_NOTES", id = "afa24a392a5a41f6b1655507dfd9b97a", preview_id = "0b334aece8d74c3ab90e3e99db569ce8" },
+  { binding = "BLASTR_RATE_LIMIT", id = "REPLACE_WITH_PROD_ID", preview_id = "REPLACE_WITH_PREVIEW_ID" },
 ]
 
 # D1 for blastr_* tables (jobs, policy, catalog, etc.)
@@ -36,6 +38,7 @@ ENVIRONMENT = "production"
 name = "blastr-staging"
 kv_namespaces = [
   { binding = "PUBLISHED_NOTES", id = "afa24a392a5a41f6b1655507dfd9b97a", preview_id = "0b334aece8d74c3ab90e3e99db569ce8" },
+  { binding = "BLASTR_RATE_LIMIT", id = "REPLACE_WITH_STAGING_ID", preview_id = "REPLACE_WITH_STAGING_PREVIEW_ID" },
 ]
 [[env.staging.d1_databases]]
 binding = "DB"

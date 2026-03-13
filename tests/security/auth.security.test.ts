@@ -16,7 +16,18 @@ import type { Env } from "../../src/types";
 vi.mock("../../src/adapters/nostr", () => ({
   verifyEventSignature: vi.fn(),
 }));
-vi.mock("../../src/services/db");
+vi.mock("../../src/services/db", () => ({
+  getEntitlement: vi.fn(),
+  getUserPolicy: vi.fn(),
+  getPolicyRelays: vi.fn(),
+  getSystemRelays: vi.fn(),
+  getJobById: vi.fn(),
+  getJobByEventId: vi.fn().mockResolvedValue(null),
+  upsertEntitlement: vi.fn(),
+  upsertUserPolicy: vi.fn(),
+  addPolicyRelay: vi.fn(),
+  removePolicyRelay: vi.fn(),
+}));
 vi.mock("../../src/services/dedupe");
 vi.mock("../../src/services/jobs");
 vi.mock("../../src/services/rate-limit", () => ({
@@ -37,6 +48,10 @@ const validEvent = {
 function envWithToken(apiToken: string): Env {
   return {
     PUBLISHED_NOTES: {
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(void 0),
+    },
+    BLASTR_RATE_LIMIT: {
       get: vi.fn().mockResolvedValue(null),
       put: vi.fn().mockResolvedValue(void 0),
     },
@@ -77,10 +92,10 @@ describe("Auth (API_TOKEN)", () => {
         notes: null,
       },
     ]);
-    vi.mocked(jobs.createJob).mockResolvedValue(1);
+    vi.mocked(jobs.ensureJob).mockResolvedValue({ jobId: 1, inserted: true });
   });
 
-  it("POST /event returns 401 when API_TOKEN is set and no token provided", async () => {
+  it("POST /event returns 200 when API_TOKEN is set and no token (Model A: entitlement only)", async () => {
     const mod = await import("../../src/index");
     const handler = mod.default;
     if (!handler.fetch) throw new Error(ERR_FETCH_UNDEFINED);
@@ -94,53 +109,33 @@ describe("Auth (API_TOKEN)", () => {
     type Req = Request<unknown, IncomingRequestCfProperties<unknown>>;
     const req = request as Req;
     const response = await handler.fetch(req, env, ctx);
-    expect(response.status).toBe(401);
-    /* eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- response.json() is untyped */
-    const json = (await response.json()) as { code: string };
-    expect(json.code).toBe("unauthorized");
-  });
-
-  it("POST /event returns 401 when API_TOKEN is set and wrong token provided", async () => {
-    const mod = await import("../../src/index");
-    const handler = mod.default;
-    if (!handler.fetch) throw new Error(ERR_FETCH_UNDEFINED);
-    const env = envWithToken(API_TOKEN_SECRET);
-    const request = new Request(EVENT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer wrong-token",
-      },
-      body: JSON.stringify(["EVENT", validEvent]),
-    });
-    const ctx = {} as ExecutionContext;
-    type Req = Request<unknown, IncomingRequestCfProperties<unknown>>;
-    const req = request as Req;
-    const response = await handler.fetch(req, env, ctx);
-    expect(response.status).toBe(401);
-  });
-
-  it("POST /event returns 200 when API_TOKEN is set and correct Bearer token provided", async () => {
-    const mod = await import("../../src/index");
-    const handler = mod.default;
-    if (!handler.fetch) throw new Error(ERR_FETCH_UNDEFINED);
-    const env = envWithToken(API_TOKEN_SECRET);
-    const request = new Request(EVENT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_TOKEN_SECRET}`,
-      },
-      body: JSON.stringify(["EVENT", validEvent]),
-    });
-    const ctx = {} as ExecutionContext;
-    type Req = Request<unknown, IncomingRequestCfProperties<unknown>>;
-    const req = request as Req;
-    const response = await handler.fetch(req, env, ctx);
     expect(response.status).toBe(200);
   });
 
-  it("WebSocket upgrade returns 401 when API_TOKEN is set and no token provided", async () => {
+  it("WebSocket upgrade returns 101 when API_TOKEN is set and no token (Model A: relay accepts without auth)", async () => {
+    const mockAccept = vi.fn();
+    const mockServer = {
+      accept: mockAccept,
+      addEventListener: vi.fn(),
+    };
+    (globalThis as unknown as Record<string, unknown>)["WebSocketPair"] = class {
+      constructor() {
+        return [{}, mockServer];
+      }
+    } as unknown;
+    const OriginalResponse = globalThis.Response;
+    globalThis.Response = class extends OriginalResponse {
+      constructor(
+        body?: BodyInit | null,
+        init?: ResponseInit & { webSocket?: unknown },
+      ) {
+        if (init?.status === 101) {
+          super(null, { status: 200, headers: { "X-WebSocket-Upgrade": "101" } });
+          return;
+        }
+        super(body ?? null, init);
+      }
+    } as typeof Response;
     const mod = await import("../../src/index");
     const handler = mod.default;
     if (!handler.fetch) throw new Error(ERR_FETCH_UNDEFINED);
@@ -152,7 +147,9 @@ describe("Auth (API_TOKEN)", () => {
     const ctx = {} as ExecutionContext;
     type Req = Request<unknown, IncomingRequestCfProperties<unknown>>;
     const response = await handler.fetch(request as Req, env, ctx);
-    expect(response.status).toBe(401);
+    expect(response.headers.get("X-WebSocket-Upgrade")).toBe("101");
+    expect(mockAccept).toHaveBeenCalled();
+    globalThis.Response = OriginalResponse;
   });
 
   it("Admin PUT /admin/entitlements/:pubkey returns 401 when API_TOKEN set and no token", async () => {

@@ -24,7 +24,8 @@ function parseCorsConfig(env: Env): CorsConfig {
     allowedMethods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
-      "API-TOKEN",
+      "Authorization",
+      "X-API-TOKEN",
       "X-Correlation-ID",
       "X-Request-ID",
     ],

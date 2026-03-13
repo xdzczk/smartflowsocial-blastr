@@ -16,7 +16,18 @@ import type { Env } from "../../src/types";
 vi.mock("../../src/adapters/nostr", () => ({
   verifyEventSignature: vi.fn(),
 }));
-vi.mock("../../src/services/db");
+vi.mock("../../src/services/db", () => ({
+  getEntitlement: vi.fn(),
+  getUserPolicy: vi.fn(),
+  getPolicyRelays: vi.fn(),
+  getSystemRelays: vi.fn(),
+  getJobById: vi.fn(),
+  getJobByEventId: vi.fn().mockResolvedValue(null),
+  upsertEntitlement: vi.fn(),
+  upsertUserPolicy: vi.fn(),
+  addPolicyRelay: vi.fn(),
+  removePolicyRelay: vi.fn(),
+}));
 vi.mock("../../src/services/dedupe");
 vi.mock("../../src/services/jobs");
 vi.mock("../../src/services/rate-limit");
@@ -39,6 +50,10 @@ const validEvent = {
 function envWithMocks(): Env {
   return {
     PUBLISHED_NOTES: {
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(void 0),
+    },
+    BLASTR_RATE_LIMIT: {
       get: vi.fn().mockResolvedValue(null),
       put: vi.fn().mockResolvedValue(void 0),
     },
@@ -74,7 +89,7 @@ describe("POST /event", () => {
         notes: null,
       },
     ]);
-    vi.mocked(jobs.createJob).mockResolvedValue(1);
+    vi.mocked(jobs.ensureJob).mockResolvedValue({ jobId: 1, inserted: true });
   });
 
   it("returns 200 and NIP-01 OK for valid EVENT body", async () => {

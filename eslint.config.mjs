@@ -42,6 +42,9 @@ export default [
       globals: {
         ...globals.node,
         WebSocketPair: "readonly",
+        RequestInit: "readonly",
+        BodyInit: "readonly",
+        ResponseInit: "readonly",
       },
       parser: tsParser,
       parserOptions: {

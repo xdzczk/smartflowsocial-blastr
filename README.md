@@ -1,6 +1,6 @@
 # Blastr
 
-**A write-focused managed Nostr relay for SmartFlowSocial.** Blastr accepts signed Nostr events (WebSocket or HTTP), enforces **pubkey-scoped entitlement** (paid subscription), applies per-pubkey **relay policy** (blacklist/whitelist), and fans out to a bounded **system relay universe**—all keyed by the event author’s pubkey, so behavior is consistent from any client (SFS app, Damus, Coracle, etc.).
+Blastr is the **SmartFlowSocial broadcast relay** — a write-focused managed Nostr relay that accepts signed Nostr events (WebSocket or HTTP), enforces **pubkey-scoped entitlement** (paid subscription), applies per-pubkey **relay policy** (blacklist/whitelist), and fans out to a bounded **system relay universe**—all keyed by the event author’s pubkey, so behavior is consistent from any client (SFS app, Damus, Coracle, etc.).
 
 ---
 
@@ -84,7 +84,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SFS_BROADCAST_RELAY_D
 | Runtime     | Cloudflare Workers (Node compat)                                            |
 | Language    | TypeScript (strict, ES2022)                                                 |
 | Database    | Cloudflare D1 (SQLite)                                                      |
-| Cache / KV  | Cloudflare KV (dedupe, optional rate-limit)                                 |
+| Cache / KV  | Cloudflare KV (dedupe: PUBLISHED_NOTES; rate limits: BLASTR_RATE_LIMIT)        |
 | Queue       | Cloudflare Queues                                                           |
 | Nostr       | [nostr-tools](https://github.com/nostr-dev-kit/ndk) (parsing, verification) |
 | Tests       | Vitest (unit, integration, coverage)                                        |
@@ -146,9 +146,9 @@ Then open the worker URL (e.g. `http://localhost:8787`). Use `GET /` with `Accep
 | `POST`              | `/event`     | Submit a Nostr event. Body: event object or `["EVENT", event]`. Returns Nostr `["OK", event_id, accepted, message]`. |
 | `GET` / `WebSocket` | `/` or `/ws` | Nostr WebSocket relay (event submission).                                                                            |
 
-When `API_TOKEN` is set, `/event` and WebSocket upgrade require `Authorization: Bearer <token>` or `X-API-TOKEN: <token>`.
+The relay (WebSocket and POST /event) is gated by **pubkey entitlement** only; no API token is required for publishing. `API_TOKEN` protects the admin API when set.
 
-### Admin API (requires `API_TOKEN`)
+### Admin API (requires `API_TOKEN` when set)
 
 | Method   | Path                                         | Description                                                                                |
 | -------- | -------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -187,11 +187,17 @@ For local dev, use `--local` instead of `--remote`.
 
 ### KV
 
-Used for event dedupe and (optionally) rate-limit counters:
+Two KV namespaces are required:
+
+- **PUBLISHED_NOTES** — Event dedupe (published event IDs).
+- **BLASTR_RATE_LIMIT** — Rate-limit state (per-pubkey and admin).
 
 ```bash
 wrangler kv:namespace create PUBLISHED_NOTES
 wrangler kv:namespace create PUBLISHED_NOTES --preview
+
+wrangler kv:namespace create BLASTR_RATE_LIMIT
+wrangler kv:namespace create BLASTR_RATE_LIMIT --preview
 ```
 
 Add the IDs to `wrangler.toml` under `kv_namespaces`.

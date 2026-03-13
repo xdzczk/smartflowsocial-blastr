@@ -66,9 +66,8 @@ paths:
   /event:
     post:
       summary: Submit a Nostr event for publishing
+      description: No API token required; access is gated by pubkey entitlement in the ingress pipeline.
       operationId: postEvent
-      security:
-        - ApiToken: []
       requestBody:
         required: true
         content:
@@ -99,12 +98,14 @@ paths:
                   - type: array
                     description: Nostr OK false
                   - $ref: "#/components/schemas/ErrorBody"
-        "401":
-          description: Missing or invalid API token (when API_TOKEN is set)
+        "403":
+          description: Not entitled (pubkey not active/grace); entitlement failures use 403
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorBody"
+                oneOf:
+                  - type: array
+                  - $ref: "#/components/schemas/ErrorBody"
         "500":
           description: Server error
           content:
@@ -114,6 +115,7 @@ paths:
     options:
       summary: CORS preflight
       operationId: optionsEvent
+      description: CORS preflight for allowed origins. Allowed request headers are Content-Type, Authorization, X-API-TOKEN, X-Correlation-ID, X-Request-ID.
       responses:
         "204":
           description: CORS preflight response
@@ -494,4 +496,4 @@ components:
           type: string
 
 security: []
-# When API_TOKEN is set, use ApiToken or XApiToken; when not set, no auth.
+# ApiToken / XApiToken apply to admin routes only when API_TOKEN is set. Relay (POST /event, WebSocket) does not use API token.

@@ -2,6 +2,14 @@
 
 Releases follow [semver](https://semver.org/). Tags are `v1.0.0`, `v1.1.0`, etc.
 
+## Distribution and snapshots
+
+Release artifacts or zip/tarball snapshots **must not include**: `node_modules/`, `coverage/`, `.git/`, `tsconfig.tsbuildinfo`, `.wrangler/`, `.dev.vars`, or any `target/` directory. To produce a clean tarball without those paths:
+
+```bash
+git archive --format=tar.gz --prefix=blastr/ HEAD -o blastr-snapshot.tar.gz
+```
+
 ## Prerequisites
 
 - CI is green (validate, unit, integration, security tests, coverage with thresholds).

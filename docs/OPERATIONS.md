@@ -1,5 +1,11 @@
 # Operations
 
+## Idempotency
+
+- **One job per event:** Enforced by `UNIQUE(event_id)` on `blastr_publish_jobs` (migration `0004_blastr_publish_jobs_event_id_unique`).
+- **Exactly one queue send per event:** Only the request that actually inserts the row calls the queue and marks the event in KV; duplicate submissions receive the same job id without re-queuing.
+- Concurrent POSTs for the same event all get 200 with the same `jobId`.
+
 ## SLOs (targets)
 
 - **Ingress latency:** p95 of time from POST /event request start to response &lt; 500 ms (excluding downstream relay calls; only validation, entitlement, rate limit, dedupe, job create, enqueue).
@@ -23,7 +29,7 @@ These are targets for tuning and alerting; adjust thresholds to your environment
 
 - **Symptom:** Many `fanout_failed` or `queue_message_retried` metrics; poison events in logs.
 - **Actions:**
-  - Inspect `blastr_publish_attempts` and job status in D1 for failing job ids; note `error_code` and `relay_url`.
+  - Inspect `blastr_publish_attempts` and job status in D1 for failing job ids; note `error_code`, `relay_url`, and `attempt_number` (which try produced the outcome: 2 or 3 means a retry was used).
   - Check system relay list (`blastr_system_relays`) and `health_status`; disable or fix unhealthy relays.
   - Verify user policy (blacklist/whitelist and policy relays) for the pubkey; ensure at least one relay is allowed.
   - For persistent poison messages: filter logs for `poison: true`, fix the underlying relay or data issue; re-publish the event if needed.

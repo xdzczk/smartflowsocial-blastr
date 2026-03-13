@@ -70,7 +70,7 @@ export async function checkRateLimit(
   const now = Math.floor(Date.now() / 1000);
   const windowStart = now - windowSeconds;
 
-  const raw = await env.PUBLISHED_NOTES.get(key, { type: "json" });
+  const raw = await env.BLASTR_RATE_LIMIT.get(key, { type: "json" });
   type Count = { count: number; windowStart: number };
   const data = raw as Count | null;
   let count = 0;
@@ -89,7 +89,7 @@ export async function checkRateLimit(
 
   const newCount = count + 1;
   const ttlSeconds = Math.min(86400, windowSeconds * 2);
-  await env.PUBLISHED_NOTES.put(
+  await env.BLASTR_RATE_LIMIT.put(
     key,
     JSON.stringify({ count: newCount, windowStart: start }),
     { expirationTtl: ttlSeconds },
@@ -116,7 +116,7 @@ export async function checkAdminRateLimit(
   const requestsPerWindow = ADMIN_DEFAULT_REQUESTS;
   const windowStart = now - windowSeconds;
 
-  const raw = await env.PUBLISHED_NOTES.get(key, { type: "json" });
+  const raw = await env.BLASTR_RATE_LIMIT.get(key, { type: "json" });
   type Count = { count: number; windowStart: number };
   const data = raw as Count | null;
   let count = 0;
@@ -135,7 +135,7 @@ export async function checkAdminRateLimit(
 
   const newCount = count + 1;
   const ttlSeconds = Math.min(86400, windowSeconds * 2);
-  await env.PUBLISHED_NOTES.put(
+  await env.BLASTR_RATE_LIMIT.put(
     key,
     JSON.stringify({ count: newCount, windowStart: start }),
     { expirationTtl: ttlSeconds },

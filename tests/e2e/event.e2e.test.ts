@@ -20,7 +20,18 @@ import type { Env, PublishJobMessage } from "../../src/types";
 vi.mock("../../src/adapters/nostr", () => ({
   verifyEventSignature: vi.fn(),
 }));
-vi.mock("../../src/services/db");
+vi.mock("../../src/services/db", () => ({
+  getEntitlement: vi.fn(),
+  getUserPolicy: vi.fn(),
+  getPolicyRelays: vi.fn(),
+  getSystemRelays: vi.fn(),
+  getJobById: vi.fn(),
+  getJobByEventId: vi.fn().mockResolvedValue(null),
+  upsertEntitlement: vi.fn(),
+  upsertUserPolicy: vi.fn(),
+  addPolicyRelay: vi.fn(),
+  removePolicyRelay: vi.fn(),
+}));
 vi.mock("../../src/services/dedupe");
 vi.mock("../../src/services/jobs");
 vi.mock("../../src/services/rate-limit");
@@ -38,6 +49,10 @@ const validEvent = {
 function envWithMocks(): Env {
   return {
     PUBLISHED_NOTES: {
+      get: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(void 0),
+    },
+    BLASTR_RATE_LIMIT: {
       get: vi.fn().mockResolvedValue(null),
       put: vi.fn().mockResolvedValue(void 0),
     },
@@ -73,7 +88,7 @@ describe("E2E: POST /event happy path", () => {
         notes: null,
       },
     ]);
-    vi.mocked(jobs.createJob).mockResolvedValue(123);
+    vi.mocked(jobs.ensureJob).mockResolvedValue({ jobId: 123, inserted: true });
   });
 
   it("returns 200, NIP-01 OK, and produces a queue message", async () => {
