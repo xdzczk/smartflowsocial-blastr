@@ -94,8 +94,11 @@ describe("Queue consumer failure paths", () => {
       latencyMs: 10,
     };
     __setRunWithConcurrencyForTesting(
-      async <T, R>(items: T[], _c: number, _fn: (item: T, i: number) => Promise<R>) =>
-        Promise.resolve(items.map(() => fakeResult) as unknown as R[]),
+      async <T, R>(
+        items: T[],
+        _c: number,
+        _fn: (item: T, i: number) => Promise<R>,
+      ) => Promise.resolve(items.map(() => fakeResult) as unknown as R[]),
     );
     vi.mocked(db.getJobById).mockResolvedValue({
       id: 999,

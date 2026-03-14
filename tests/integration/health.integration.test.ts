@@ -17,7 +17,9 @@ function minimalValidEnv(overrides: Partial<Record<string, unknown>> = {}) {
       put: vi.fn().mockResolvedValue(void 0),
     },
     DB: {
-      prepare: vi.fn().mockReturnValue({ first: vi.fn().mockResolvedValue({}) }),
+      prepare: vi
+        .fn()
+        .mockReturnValue({ first: vi.fn().mockResolvedValue({}) }),
     },
     BLASTR_PUBLISH_QUEUE: { send: vi.fn().mockResolvedValue(void 0) },
     ...overrides,
@@ -63,8 +65,12 @@ describe("Environment validation failure", () => {
     const json = (await response.json()) as Record<string, unknown>; // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion -- response.json() returns any
     expect(json).toHaveProperty("code", "CONFIGURATION_ERROR");
     expect(json).toHaveProperty("details");
-    expect((json["details"] as Record<string, unknown>)["message"]).toBeDefined();
-    expect(String((json["details"] as Record<string, unknown>)["message"])).toContain("DB");
+    expect(
+      (json["details"] as Record<string, unknown>)["message"],
+    ).toBeDefined();
+    expect(
+      String((json["details"] as Record<string, unknown>)["message"]),
+    ).toContain("DB");
   });
 });
 

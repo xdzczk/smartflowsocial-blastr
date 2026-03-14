@@ -45,21 +45,28 @@
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^8.52.0",
     "@typescript-eslint/parser": "^8.52.0",
-    "@vitest/coverage-v8": "^4.0.17",
+    "@vitest/coverage-v8": "^4.1.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-no-secrets": "^2.2.1",
     "eslint-plugin-promise": "^7.2.1",
-    "eslint-plugin-sonarjs": "^3.0.5",
+    "eslint-plugin-sonarjs": "^3.0.7",
     "eslint-plugin-unicorn": "^62.0.0",
     "globals": "^17.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "prettier": "3.7.4",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.17",
-    "wrangler": "^3.114.17"
+    "vitest": "^4.1.0",
+    "wrangler": "^4.73.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "minimatch": ">=10.2.3",
+      "esbuild": ">=0.25.0",
+      "undici": ">=7.24.0"
+    }
   }
 }

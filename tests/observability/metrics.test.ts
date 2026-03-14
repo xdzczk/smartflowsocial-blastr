@@ -16,7 +16,9 @@ describe("metrics", () => {
   let consoleSpy: { mockRestore: () => void; mock: { calls: unknown[][] } };
 
   beforeEach(() => {
-    consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {}) as unknown as {
+    consoleSpy = vi
+      .spyOn(console, "info")
+      .mockImplementation(() => {}) as unknown as {
       mockRestore: () => void;
       mock: { calls: unknown[][] };
     };

@@ -14,7 +14,10 @@ function mockEnv(
   const rateLimitKv = { get, put };
   const db = {};
   const queue = {};
-  const publishedNotes = { get: vi.fn().mockResolvedValue(null), put: vi.fn().mockResolvedValue(void 0) };
+  const publishedNotes = {
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue(void 0),
+  };
   return {
     PUBLISHED_NOTES: publishedNotes as unknown as Env["PUBLISHED_NOTES"],
     BLASTR_RATE_LIMIT: rateLimitKv as unknown as Env["BLASTR_RATE_LIMIT"],

@@ -7,11 +7,7 @@ import {
 import { loadSystemRelayUniverse } from "../core/relay-catalog";
 import { BlastrError, ErrorCodes } from "../errors";
 import type { Logger } from "../logger";
-import {
-  getEntitlement,
-  getPolicyRelays,
-  getUserPolicy,
-} from "../services/db";
+import { getEntitlement, getPolicyRelays, getUserPolicy } from "../services/db";
 import { isPublished, markPublished } from "../services/dedupe";
 import { ensureJob } from "../services/jobs";
 import { checkRateLimit } from "../services/rate-limit";

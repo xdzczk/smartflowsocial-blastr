@@ -36,12 +36,19 @@ function createMockWebSocket(): {
     send = (data: string): void => {
       try {
         const arr = JSON.parse(data) as unknown[];
-        if (arr[0] === "EVENT" && arr[1] && typeof arr[1] === "object" && "id" in arr[1]) {
+        if (
+          arr[0] === "EVENT" &&
+          arr[1] &&
+          typeof arr[1] === "object" &&
+          "id" in arr[1]
+        ) {
           const eventId = this._replyWithWrongId
             ? "wrong-id"
             : String((arr[1] as { id: string }).id);
           setImmediate(() => {
-            this.message?.({ data: JSON.stringify(["OK", eventId, this._accept, ""]) });
+            this.message?.({
+              data: JSON.stringify(["OK", eventId, this._accept, ""]),
+            });
           });
         }
       } catch {
@@ -62,7 +69,9 @@ function createMockWebSocket(): {
   }
   return {
     instances,
-    WebSocket: MockWS as unknown as new (url: string) => InstanceType<typeof globalThis.WebSocket>,
+    WebSocket: MockWS as unknown as new (
+      url: string,
+    ) => InstanceType<typeof globalThis.WebSocket>,
   };
 }
 
@@ -127,8 +136,9 @@ describe("processQueueMessage with real WebSocket path", () => {
   });
 
   afterEach(() => {
-    (globalThis as unknown as { WebSocket: typeof OriginalWebSocket }).WebSocket =
-      OriginalWebSocket;
+    (
+      globalThis as unknown as { WebSocket: typeof OriginalWebSocket }
+    ).WebSocket = OriginalWebSocket;
   });
 
   it("sends event via WebSocket and completes successfully when mock responds OK", async () => {
@@ -218,17 +228,21 @@ describe("processQueueMessage with real WebSocket path", () => {
   }, 15000);
 
   it("records failed when WebSocket constructor throws (catch branch)", async () => {
-    const OriginalWS = (globalThis as unknown as { WebSocket: typeof mock.WebSocket }).WebSocket;
-    (globalThis as unknown as { WebSocket: typeof OriginalWS }).WebSocket = class {
-      constructor() {
-        throw new Error("mock connection refused");
-      }
-    } as unknown as typeof globalThis.WebSocket;
+    const OriginalWS = (
+      globalThis as unknown as { WebSocket: typeof mock.WebSocket }
+    ).WebSocket;
+    (globalThis as unknown as { WebSocket: typeof OriginalWS }).WebSocket =
+      class {
+        constructor() {
+          throw new Error("mock connection refused");
+        }
+      } as unknown as typeof globalThis.WebSocket;
 
     const done = processQueueMessage(baseMessage, env(), logger);
     await done;
 
-    (globalThis as unknown as { WebSocket: typeof OriginalWS }).WebSocket = OriginalWS;
+    (globalThis as unknown as { WebSocket: typeof OriginalWS }).WebSocket =
+      OriginalWS;
 
     expect(jobs.updateJobStatus).toHaveBeenLastCalledWith(
       expect.anything(),

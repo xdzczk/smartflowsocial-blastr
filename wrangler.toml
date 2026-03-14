@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 # Create BLASTR_RATE_LIMIT with: wrangler kv:namespace create BLASTR_RATE_LIMIT (and --preview for preview_id)
 kv_namespaces = [
   { binding = "PUBLISHED_NOTES", id = "afa24a392a5a41f6b1655507dfd9b97a", preview_id = "0b334aece8d74c3ab90e3e99db569ce8" },
-  { binding = "BLASTR_RATE_LIMIT", id = "REPLACE_WITH_PROD_ID", preview_id = "REPLACE_WITH_PREVIEW_ID" },
+  { binding = "BLASTR_RATE_LIMIT", id = "a892de3494cb45f5986badedfcbde622", preview_id = "9dd075c2952d4d9d9b62882846cce97c" },
 ]
 
 # D1 for blastr_* tables (jobs, policy, catalog, etc.)

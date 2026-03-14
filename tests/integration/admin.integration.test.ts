@@ -54,7 +54,13 @@ async function adminFetch(
   headersOverride?: Record<string, string>,
 ): Promise<Response> {
   const mod = (await import("../../src/index")) as {
-    default: { fetch?: (req: Request, env: Env, ctx: ExecutionContext) => Promise<Response> };
+    default: {
+      fetch?: (
+        req: Request,
+        env: Env,
+        ctx: ExecutionContext,
+      ) => Promise<Response>;
+    };
   };
   const handler = mod.default;
   if (!handler.fetch) throw new Error("handler.fetch is undefined");
@@ -147,7 +153,12 @@ describe("Admin integration", () => {
       });
       expect(res.status).toBe(200);
       const json = await parseResJson(res);
-      expect(json).toMatchObject({ ok: true, pubkey: PUBKEY, plan_tier: "default", status: "active" });
+      expect(json).toMatchObject({
+        ok: true,
+        pubkey: PUBKEY,
+        plan_tier: "default",
+        status: "active",
+      });
     });
 
     it("returns 400 on invalid JSON body", async () => {
@@ -196,10 +207,14 @@ describe("Admin integration", () => {
   describe("PUT /admin/users/:pubkey/policy", () => {
     it("returns 200 with mode whitelist and enabled true", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/policy", env, {
-        method: "PUT",
-        body: JSON.stringify({ mode: "whitelist", enabled: true }),
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/policy",
+        env,
+        {
+          method: "PUT",
+          body: JSON.stringify({ mode: "whitelist", enabled: true }),
+        },
+      );
       expect(res.status).toBe(200);
       const json = await parseResJson(res);
       expect(json).toMatchObject({
@@ -212,10 +227,14 @@ describe("Admin integration", () => {
 
     it("returns 200 with mode blacklist and enabled false", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/policy", env, {
-        method: "PUT",
-        body: JSON.stringify({ mode: "blacklist", enabled: false }),
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/policy",
+        env,
+        {
+          method: "PUT",
+          body: JSON.stringify({ mode: "blacklist", enabled: false }),
+        },
+      );
       expect(res.status).toBe(200);
       const json = await parseResJson(res);
       expect(json).toMatchObject({
@@ -228,10 +247,14 @@ describe("Admin integration", () => {
 
     it("returns 400 on invalid JSON", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/policy", env, {
-        method: "PUT",
-        body: "{",
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/policy",
+        env,
+        {
+          method: "PUT",
+          body: "{",
+        },
+      );
       expect(res.status).toBe(400);
     });
   });
@@ -241,7 +264,10 @@ describe("Admin integration", () => {
       vi.mocked(db.getUserPolicy).mockResolvedValue(null);
       vi.mocked(db.getPolicyRelays).mockResolvedValue([]);
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/policy", env);
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/policy",
+        env,
+      );
       expect(res.status).toBe(200);
       const json = await parseResJson(res);
       expect(json["pubkey"]).toBe(PUBKEY);
@@ -265,7 +291,10 @@ describe("Admin integration", () => {
         },
       ]);
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/policy", env);
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/policy",
+        env,
+      );
       expect(res.status).toBe(200);
       const json = await parseResJson(res);
       expect(json["policy"]).toEqual({ mode: "whitelist", enabled: 1 });
@@ -280,13 +309,17 @@ describe("Admin integration", () => {
   describe("POST /admin/users/:pubkey/relays", () => {
     it("returns 200 with relay_url and action allow", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/relays", env, {
-        method: "POST",
-        body: JSON.stringify({
-          relay_url: WSS_R_EXAMPLE,
-          action: "allow",
-        }),
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/relays",
+        env,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            relay_url: WSS_R_EXAMPLE,
+            action: "allow",
+          }),
+        },
+      );
       expect(res.status).toBe(200);
       const json = await parseResJson(res);
       expect(json).toMatchObject({
@@ -299,10 +332,14 @@ describe("Admin integration", () => {
 
     it("returns 200 with action defaulting to block when not allow", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/relays", env, {
-        method: "POST",
-        body: JSON.stringify({ relay_url: WSS_R_EXAMPLE }),
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/relays",
+        env,
+        {
+          method: "POST",
+          body: JSON.stringify({ relay_url: WSS_R_EXAMPLE }),
+        },
+      );
       expect(res.status).toBe(200);
       const json = await parseResJson(res);
       expect(json["action"]).toBe("block");
@@ -310,19 +347,27 @@ describe("Admin integration", () => {
 
     it("returns 400 on invalid JSON", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/relays", env, {
-        method: "POST",
-        body: "not json",
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/relays",
+        env,
+        {
+          method: "POST",
+          body: "not json",
+        },
+      );
       expect(res.status).toBe(400);
     });
 
     it("returns 400 when relay_url is missing", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/relays", env, {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/relays",
+        env,
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+        },
+      );
       expect(res.status).toBe(400);
       const json = await parseResJson(res);
       expect(json["code"]).toBe("bad_request");
@@ -333,7 +378,9 @@ describe("Admin integration", () => {
     it("returns 200 when relay_url query param is provided", async () => {
       const env = adminEnv();
       const res = await adminFetch(
-        ADMIN_USERS_PREFIX + PUBKEY + "/relays?relay_url=wss%3A%2F%2Fr.example.com",
+        ADMIN_USERS_PREFIX +
+          PUBKEY +
+          "/relays?relay_url=wss%3A%2F%2Fr.example.com",
         env,
         { method: "DELETE" },
       );
@@ -348,9 +395,13 @@ describe("Admin integration", () => {
 
     it("returns 404 when relay_url query param is missing", async () => {
       const env = adminEnv();
-      const res = await adminFetch(ADMIN_USERS_PREFIX + PUBKEY + "/relays", env, {
-        method: "DELETE",
-      });
+      const res = await adminFetch(
+        ADMIN_USERS_PREFIX + PUBKEY + "/relays",
+        env,
+        {
+          method: "DELETE",
+        },
+      );
       expect(res.status).toBe(404);
     });
   });

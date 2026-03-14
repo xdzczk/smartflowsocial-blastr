@@ -5,7 +5,11 @@ import type { Env } from "../../src/types";
 
 function mockEnv(
   get: (key: string) => Promise<unknown>,
-  put: (key: string, value: string, opts?: { expirationTtl: number }) => Promise<void>,
+  put: (
+    key: string,
+    value: string,
+    opts?: { expirationTtl: number },
+  ) => Promise<void>,
 ): Env {
   const rateLimitKv = { get, put };
   const base: Record<string, unknown> = {

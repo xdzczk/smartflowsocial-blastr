@@ -3,10 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const { verifyEvent } = vi.hoisted(() => ({ verifyEvent: vi.fn() }));
 vi.mock("nostr-tools/pure", () => ({ verifyEvent }));
 
-import {
-  toNostrEvent,
-  verifyEventSignature,
-} from "../../src/adapters/nostr";
+import { toNostrEvent, verifyEventSignature } from "../../src/adapters/nostr";
 
 describe("nostr adapter", () => {
   beforeEach(() => {

@@ -101,7 +101,11 @@ describe("processQueueMessage", () => {
 
   it("updates job status to success when all relays succeed", async () => {
     __setRunWithConcurrencyForTesting(
-      async <T, R>(items: T[], _c: number, _fn: (item: T, i: number) => Promise<R>) =>
+      async <T, R>(
+        items: T[],
+        _c: number,
+        _fn: (item: T, i: number) => Promise<R>,
+      ) =>
         Promise.resolve(
           items.map(() => ({
             success: true,
@@ -142,7 +146,11 @@ describe("processQueueMessage", () => {
 
   it("updates job status to failed when all relays fail", async () => {
     __setRunWithConcurrencyForTesting(
-      async <T, R>(items: T[], _c: number, _fn: (item: T, i: number) => Promise<R>) =>
+      async <T, R>(
+        items: T[],
+        _c: number,
+        _fn: (item: T, i: number) => Promise<R>,
+      ) =>
         Promise.resolve(
           items.map(() => ({
             success: false,
@@ -184,7 +192,11 @@ describe("processQueueMessage", () => {
 
   it("updates job status to partial when some relays succeed", async () => {
     __setRunWithConcurrencyForTesting(
-      async <T, R>(items: T[], _c: number, _fn: (item: T, i: number) => Promise<R>) =>
+      async <T, R>(
+        items: T[],
+        _c: number,
+        _fn: (item: T, i: number) => Promise<R>,
+      ) =>
         Promise.resolve(
           items.map((_, i) =>
             i === 0

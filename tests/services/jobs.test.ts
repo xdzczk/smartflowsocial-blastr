@@ -8,17 +8,21 @@ vi.mock("../../src/services/db", () => ({
   getJobByEventId: vi.fn(),
 }));
 
-function mockD1(overrides: {
-  first?: unknown;
-  all?: { results: unknown[]; meta?: { last_row_id?: number } };
-  runMeta?: { last_row_id: number };
-} = {}): D1Database {
+function mockD1(
+  overrides: {
+    first?: unknown;
+    all?: { results: unknown[]; meta?: { last_row_id?: number } };
+    runMeta?: { last_row_id: number };
+  } = {},
+): D1Database {
   const chain = {
     bind: vi.fn().mockReturnThis(),
     first: vi.fn().mockResolvedValue(overrides.first ?? null),
-    all: vi.fn().mockResolvedValue(
-      overrides.all ?? { results: [], meta: { last_row_id: 1 } },
-    ),
+    all: vi
+      .fn()
+      .mockResolvedValue(
+        overrides.all ?? { results: [], meta: { last_row_id: 1 } },
+      ),
     run: vi.fn().mockResolvedValue({
       meta: overrides.runMeta ?? { last_row_id: 1 },
     }),

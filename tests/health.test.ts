@@ -12,7 +12,9 @@ function mockEnv(overrides?: {
   const dbLiteral = overrides?.dbThrows
     ? { prepare: vi.fn().mockRejectedValue(new Error("D1 unavailable")) }
     : {
-        prepare: vi.fn().mockReturnValue({ first: vi.fn().mockResolvedValue({}) }),
+        prepare: vi
+          .fn()
+          .mockReturnValue({ first: vi.fn().mockResolvedValue({}) }),
       };
   const db = dbLiteral as unknown as Env["DB"];
   const kvLiteral = overrides?.kvThrows

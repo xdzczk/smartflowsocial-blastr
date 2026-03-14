@@ -21,7 +21,8 @@ function createMockServerWebSocket(): {
   let errorListener: (() => void) | undefined;
   const addEventListener = vi.fn(
     (event: string, listener: (e?: MessageEvent) => void) => {
-      if (event === "message") messageListener = listener as (e: MessageEvent) => void;
+      if (event === "message")
+        messageListener = listener as (e: MessageEvent) => void;
       if (event === "close") closeListener = listener as () => void;
       if (event === "error") errorListener = listener as () => void;
     },
@@ -108,7 +109,7 @@ describe("handleWebSocketRelay message handling", () => {
   });
 
   it("sends NOTICE for array length < 2", async () => {
-    await sendClientMessage("[\"EVENT\"]");
+    await sendClientMessage('["EVENT"]');
     const sent = getSentMessages();
     expect(sent).toHaveLength(1);
     const first = sent[0];
@@ -117,7 +118,7 @@ describe("handleWebSocketRelay message handling", () => {
   });
 
   it("sends NOTICE when first element is not a string (invalid format)", async () => {
-    await sendClientMessage("[1, \"payload\"]");
+    await sendClientMessage('[1, "payload"]');
     const sent = getSentMessages();
     expect(sent).toHaveLength(1);
     const first = sent[0];

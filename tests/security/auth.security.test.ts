@@ -118,11 +118,12 @@ describe("Auth (API_TOKEN)", () => {
       accept: mockAccept,
       addEventListener: vi.fn(),
     };
-    (globalThis as unknown as Record<string, unknown>)["WebSocketPair"] = class {
-      constructor() {
-        return [{}, mockServer];
-      }
-    } as unknown;
+    (globalThis as unknown as Record<string, unknown>)["WebSocketPair"] =
+      class {
+        constructor() {
+          return [{}, mockServer];
+        }
+      } as unknown;
     const OriginalResponse = globalThis.Response;
     globalThis.Response = class extends OriginalResponse {
       constructor(
@@ -130,7 +131,10 @@ describe("Auth (API_TOKEN)", () => {
         init?: ResponseInit & { webSocket?: unknown },
       ) {
         if (init?.status === 101) {
-          super(null, { status: 200, headers: { "X-WebSocket-Upgrade": "101" } });
+          super(null, {
+            status: 200,
+            headers: { "X-WebSocket-Upgrade": "101" },
+          });
           return;
         }
         super(body ?? null, init);

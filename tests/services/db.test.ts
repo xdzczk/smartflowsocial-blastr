@@ -3,11 +3,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import * as db from "../../src/services/db";
 
-function mockD1(overrides: {
-  first?: unknown;
-  all?: { results: unknown[] };
-  run?: void;
-} = {}): D1Database {
+function mockD1(
+  overrides: {
+    first?: unknown;
+    all?: { results: unknown[] };
+    run?: void;
+  } = {},
+): D1Database {
   const chain = {
     bind: vi.fn().mockReturnThis(),
     first: vi.fn().mockResolvedValue(overrides.first ?? null),
@@ -67,7 +69,12 @@ describe("db", () => {
   describe("getPolicyRelays", () => {
     it("returns results array", async () => {
       const results = [
-        { pubkey: TEST_PUBKEY, relay_url: "wss://x.com", action: "allow", created_at: 0 },
+        {
+          pubkey: TEST_PUBKEY,
+          relay_url: "wss://x.com",
+          action: "allow",
+          created_at: 0,
+        },
       ];
       const d1 = mockD1({ all: { results } });
       expect(await db.getPolicyRelays(d1, TEST_PUBKEY)).toEqual(results);

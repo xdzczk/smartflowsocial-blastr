@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { BlastrError } from "../../../src/errors";
-import { nip11Handler, publishHandler } from "../../../src/transport/http/handlers";
+import {
+  nip11Handler,
+  publishHandler,
+} from "../../../src/transport/http/handlers";
 import * as pipeline from "../../../src/transport/pipeline";
 import type { Env } from "../../../src/types";
 

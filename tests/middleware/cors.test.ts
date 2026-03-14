@@ -44,13 +44,17 @@ describe("cors", () => {
 
   describe("handleCorsPreflight", () => {
     it("returns null when method is not OPTIONS", () => {
-      const config = getCorsConfig(env({ CORS_ENABLED: "true", CORS_ORIGINS: CORS_ORIGINS_X }));
+      const config = getCorsConfig(
+        env({ CORS_ENABLED: "true", CORS_ORIGINS: CORS_ORIGINS_X }),
+      );
       const req = new Request(LOCALHOST_EVENT, { method: "GET" });
       expect(handleCorsPreflight(req, config)).toBeNull();
     });
 
     it("returns 403 when origin is not allowed", () => {
-      const config = getCorsConfig(env({ CORS_ENABLED: "true", CORS_ORIGINS: CORS_ORIGINS_X }));
+      const config = getCorsConfig(
+        env({ CORS_ENABLED: "true", CORS_ORIGINS: CORS_ORIGINS_X }),
+      );
       const req = new Request(LOCALHOST_EVENT, {
         method: "OPTIONS",
         headers: { Origin: "https://evil.com" },
@@ -85,7 +89,9 @@ describe("cors", () => {
     });
 
     it("returns response unchanged when origin not allowed", () => {
-      const config = getCorsConfig(env({ CORS_ENABLED: "true", CORS_ORIGINS: ORIGIN_A }));
+      const config = getCorsConfig(
+        env({ CORS_ENABLED: "true", CORS_ORIGINS: ORIGIN_A }),
+      );
       const req = new Request(LOCALHOST_EVENT, {
         headers: { Origin: "https://other.com" },
       });
@@ -95,7 +101,9 @@ describe("cors", () => {
     });
 
     it("adds CORS headers when enabled and origin allowed", () => {
-      const config = getCorsConfig(env({ CORS_ENABLED: "true", CORS_ORIGINS: ORIGIN_A }));
+      const config = getCorsConfig(
+        env({ CORS_ENABLED: "true", CORS_ORIGINS: ORIGIN_A }),
+      );
       const req = new Request(LOCALHOST_EVENT, {
         headers: { Origin: ORIGIN_A },
       });

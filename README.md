@@ -96,7 +96,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SFS_BROADCAST_RELAY_D
 | Runtime     | Cloudflare Workers (Node compat)                                            |
 | Language    | TypeScript (strict, ES2022)                                                 |
 | Database    | Cloudflare D1 (SQLite)                                                      |
-| Cache / KV  | Cloudflare KV (dedupe: PUBLISHED_NOTES; rate limits: BLASTR_RATE_LIMIT)        |
+| Cache / KV  | Cloudflare KV (dedupe: PUBLISHED_NOTES; rate limits: BLASTR_RATE_LIMIT)     |
 | Queue       | Cloudflare Queues                                                           |
 | Nostr       | [nostr-tools](https://github.com/nostr-dev-kit/ndk) (parsing, verification) |
 | Tests       | Vitest (unit, integration, coverage)                                        |
@@ -209,6 +209,21 @@ See [docs/API.md](docs/API.md) for request/response details.
 
 ---
 
+## First-time setup (before first deploy)
+
+**Deploy will fail** if the Queue and KV namespaces don’t exist. Do this once before deploying (or before connecting Git to Cloudflare):
+
+1. **Create the Queue** (required; deploy fails without it):
+   ```bash
+   wrangler queues create blastr-publish-jobs
+   ```
+2. **Create KV namespaces** and put their IDs in `wrangler.toml` (see [Setup (D1, KV, Queues)](#setup-d1-kv-queues)).
+3. **Create D1 database**, run migrations, and add `database_id` to `wrangler.toml`.
+
+Then run `pnpm deploy` or use the Git integration.
+
+---
+
 ## Setup (D1, KV, Queues)
 
 ### D1
@@ -291,30 +306,30 @@ Coverage thresholds are enforced in `vitest.config.ts`.
 
 ## Documentation
 
-| Document                                                                 | Description                                                                 |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                             | High-level architecture, components, data flow, and data model.           |
-| [docs/API.md](docs/API.md)                                               | HTTP and WebSocket API reference (public and admin endpoints).              |
-| [docs/SFS_BROADCAST_RELAY_DESIGN.md](docs/SFS_BROADCAST_RELAY_DESIGN.md) | Product and design assessment, relay resolution, phasing.                  |
-| [docs/VERSIONING.md](docs/VERSIONING.md)                                | API versioning policy and future breaking changes.                          |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md)                                 | SLOs, runbooks, health/readiness, fanout and poison-message handling.       |
-| [docs/RELEASE.md](docs/RELEASE.md)                                      | Release process, version bump, changelog, and tagging.                      |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                                      | How to run checks, write tests, and submit changes.                          |
-| [SECURITY.md](SECURITY.md)                                              | Reporting vulnerabilities and scope.                                        |
-| [CHANGELOG.md](CHANGELOG.md)                                             | User-facing and breaking changes per release.                               |
+| Document                                                                 | Description                                                           |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                             | High-level architecture, components, data flow, and data model.       |
+| [docs/API.md](docs/API.md)                                               | HTTP and WebSocket API reference (public and admin endpoints).        |
+| [docs/SFS_BROADCAST_RELAY_DESIGN.md](docs/SFS_BROADCAST_RELAY_DESIGN.md) | Product and design assessment, relay resolution, phasing.             |
+| [docs/VERSIONING.md](docs/VERSIONING.md)                                 | API versioning policy and future breaking changes.                    |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md)                                 | SLOs, runbooks, health/readiness, fanout and poison-message handling. |
+| [docs/RELEASE.md](docs/RELEASE.md)                                       | Release process, version bump, changelog, and tagging.                |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                       | How to run checks, write tests, and submit changes.                   |
+| [SECURITY.md](SECURITY.md)                                               | Reporting vulnerabilities and scope.                                  |
+| [CHANGELOG.md](CHANGELOG.md)                                             | User-facing and breaking changes per release.                         |
 
 ---
 
 ## Troubleshooting
 
-| Issue | What to check |
-| ----- | -------------- |
-| **Clone / install fails** | Node.js ≥20 and pnpm 10.x. Run `pnpm install` in the project root. |
-| **`pnpm start` fails or bindings missing** | Ensure `wrangler.toml` has D1, KV, and Queue bindings; for local dev use `--local` in D1 execute and add preview IDs for KV. See [Setup (D1, KV, Queues)](#setup-d1-kv-queues). |
-| **GET /ready returns 503** | D1, KV, or queue binding unreachable. Check names and IDs in `wrangler.toml`, run migrations for D1, confirm queue exists. See [docs/OPERATIONS.md](docs/OPERATIONS.md#health--readiness-failing). |
-| **POST /event rejected: "subscription required"** | The event’s `pubkey` must exist in `blastr_entitlements` with `status` `active` or `grace`. Add an entitlement via the admin API or seed the table. |
-| **Events not reaching downstream relays** | Check queue consumer logs and `blastr_publish_attempts` in D1. Fanout failures and poison messages are described in [docs/OPERATIONS.md](docs/OPERATIONS.md#fanout-failing-repeatedly). |
-| **Rate limit or duplicate errors** | Adjust `RATE_LIMIT_*` env vars; duplicate events are rejected by design (see dedupe in ingress). |
+| Issue                                             | What to check                                                                                                                                                                                      |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Clone / install fails**                         | Node.js ≥20 and pnpm 10.x. Run `pnpm install` in the project root.                                                                                                                                 |
+| **`pnpm start` fails or bindings missing**        | Ensure `wrangler.toml` has D1, KV, and Queue bindings; for local dev use `--local` in D1 execute and add preview IDs for KV. See [Setup (D1, KV, Queues)](#setup-d1-kv-queues).                    |
+| **GET /ready returns 503**                        | D1, KV, or queue binding unreachable. Check names and IDs in `wrangler.toml`, run migrations for D1, confirm queue exists. See [docs/OPERATIONS.md](docs/OPERATIONS.md#health--readiness-failing). |
+| **POST /event rejected: "subscription required"** | The event’s `pubkey` must exist in `blastr_entitlements` with `status` `active` or `grace`. Add an entitlement via the admin API or seed the table.                                                |
+| **Events not reaching downstream relays**         | Check queue consumer logs and `blastr_publish_attempts` in D1. Fanout failures and poison messages are described in [docs/OPERATIONS.md](docs/OPERATIONS.md#fanout-failing-repeatedly).            |
+| **Rate limit or duplicate errors**                | Adjust `RATE_LIMIT_*` env vars; duplicate events are rejected by design (see dedupe in ingress).                                                                                                   |
 
 More runbooks: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
