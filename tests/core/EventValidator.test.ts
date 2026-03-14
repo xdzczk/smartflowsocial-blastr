@@ -32,19 +32,20 @@ describe("EventValidator", () => {
     if (!r.ok) expect(r.error.code).toBe("disallowed_kind");
   });
 
-  it("accepts kind 0 and 1 with valid shape and mocked signature", () => {
-    const ev = {
+  it("accepts allowed kinds (0, 1, 6, 30023) with valid shape and mocked signature", () => {
+    const base = {
       id: "a".repeat(64),
       pubkey: "b".repeat(64),
       created_at: Math.floor(Date.now() / 1000),
-      kind: 1,
       tags: [],
       content: "hello",
       sig: "c".repeat(128),
     };
-    const r = validateEvent(ev);
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.event.kind).toBe(1);
+    for (const kind of [0, 1, 6, 30023]) {
+      const r = validateEvent({ ...base, kind });
+      expect(r.ok).toBe(true);
+      if (r.ok) expect(r.event.kind).toBe(kind);
+    }
   });
 
   it("rejects when signature verification fails", () => {

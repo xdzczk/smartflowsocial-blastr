@@ -57,7 +57,7 @@ describe("GET / (NIP-11)", () => {
     expect(res.headers.get("Content-Type")).toBe(MIME_NOSTR_JSON);
     const json = (await res.json()) as Record<string, unknown>; // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion -- res.json() returns any
     expect(json).toHaveProperty("name", "Blastr");
-    expect(json).toHaveProperty("supported_nips", [1, 11, 15, 20]);
+    expect(json).toHaveProperty("supported_nips", [1, 11, 15, 18, 20, 23]);
     expect(json).toHaveProperty("limitation");
     expect(json["limitation"]).toEqual({ write: true, read: false });
   });

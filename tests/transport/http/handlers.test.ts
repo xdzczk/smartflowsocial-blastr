@@ -27,7 +27,7 @@ describe("handlers", () => {
       expect(res.headers.get("Content-Type")).toBe("application/nostr+json");
       const json = await res.json();
       expect(json).toHaveProperty("name", "Blastr");
-      expect(json).toHaveProperty("supported_nips", [1, 11, 15, 20]);
+      expect(json).toHaveProperty("supported_nips", [1, 11, 15, 18, 20, 23]);
     });
   });
 

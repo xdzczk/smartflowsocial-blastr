@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## Unreleased
 
-- (Add entries here for upcoming changes.)
+- (Add entries here for upcoming changes. Examples: **Added** — new endpoint or config; **Changed** — behavior or default; **Fixed** — bug fix; **Removed** — deprecated feature.)
 
 ## 1.0.0 — 2025-03-12
 

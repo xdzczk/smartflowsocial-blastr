@@ -1,5 +1,18 @@
 # Operations
 
+## Production deploy checklist
+
+Before the first deploy (or when setting up a new environment):
+
+1. **Cloudflare resources** — In the same account you deploy from: create the queue (`wrangler queues create blastr-publish-jobs`), create KV namespaces (PUBLISHED_NOTES, BLASTR_RATE_LIMIT) and optionally preview namespaces for local, create D1 and run migrations. Add all IDs to `wrangler.toml`.
+2. **Secrets / env** — Set `API_TOKEN` to protect the admin API. If using CORS, set `CORS_ENABLED` and `CORS_ORIGINS`.
+3. **Deploy** — Run `pnpm deploy` (or `wrangler deploy --env=staging` for staging). Ensure CI is green before production deploys.
+4. **Verify** — Hit `GET /health` and `GET /ready`; confirm readiness checks pass. Add at least one entitlement via the admin API and test `POST /event` with a signed event.
+
+See the [First-time setup](../README.md#first-time-setup-before-first-deploy) and [Setup (D1, KV, Queues)](../README.md#setup-d1-kv-queues) sections in the main README for commands.
+
+---
+
 ## Idempotency
 
 - **One job per event:** Enforced by `UNIQUE(event_id)` on `blastr_publish_jobs` (migration `0004_blastr_publish_jobs_event_id_unique`).

@@ -4,7 +4,7 @@
 
 If you believe you have found a security vulnerability in Blastr, please report it responsibly.
 
-- **Preferred:** Open a [GitHub Security Advisory](https://github.com/cloudflare/workers-sdk/security/advisories/new) in this repository (or the canonical Blastr repo if different). This allows private disclosure and coordinated release.
+- **Preferred:** Open a [GitHub Security Advisory](https://github.com/xdzczk/vibe-blastr/security/advisories/new) in this repository (or the canonical Blastr repo if different). This allows private disclosure and coordinated release.
 - **Alternative:** Email the maintainers (see repository description or owner profile) with a clear description of the issue, steps to reproduce, and impact. Do not open a public issue for unfixed security vulnerabilities.
 
 ## What to expect

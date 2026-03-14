@@ -101,7 +101,7 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       const nip11 = {
         name: "Blastr",
         description: "SFS Broadcast Relay - write-focused managed relay",
-        supported_nips: [1, 11, 15, 20],
+        supported_nips: [1, 11, 15, 18, 20, 23],
         limitation: { write: true, read: false },
       };
       if (wantsNostrJson) {

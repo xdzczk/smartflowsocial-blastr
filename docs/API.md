@@ -79,7 +79,7 @@ Body is a Nostr OK message:
   ```
 
 - Possible messages include:
-  - Invalid signature, disallowed kind, event too large
+  - Invalid signature, disallowed kind (allowed: 0, 1, 6, 30023), event too large
   - Not entitled (e.g. “paid SmartFlowSocial subscription required”)
   - Rate limit exceeded
   - Duplicate event
@@ -136,6 +136,15 @@ All admin responses are JSON (`Content-Type: application/json`).
 ```
 
 **Errors:** `400` if body is not valid JSON.
+
+**Example:**
+
+```bash
+curl -s -X PUT "https://your-blastr.example.com/admin/entitlements/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"active","plan_tier":"default"}'
+```
 
 ---
 

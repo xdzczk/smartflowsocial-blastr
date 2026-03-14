@@ -65,7 +65,7 @@ export function nip11Handler(): Response {
     JSON.stringify({
       name: "Blastr",
       description: "SFS Broadcast Relay - write-focused managed relay",
-      supported_nips: [1, 11, 15, 20],
+      supported_nips: [1, 11, 15, 18, 20, 23],
     }),
     { headers: { "Content-Type": "application/nostr+json" } },
   );

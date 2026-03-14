@@ -7,7 +7,7 @@
 
 Blastr is the **SmartFlowSocial broadcast relay** — a write-focused managed Nostr relay that accepts signed Nostr events (WebSocket or HTTP), enforces **pubkey-scoped entitlement** (paid subscription), applies per-pubkey **relay policy** (blacklist/whitelist), and fans out to a bounded **system relay universe**—all keyed by the event author’s pubkey, so behavior is consistent from any client (SFS app, Damus, Coracle, etc.).
 
-**Why Blastr?** If you run a Nostr app and want paid subscribers to broadcast to a curated set of relays from any client (your app, Damus, etc.) with one consistent policy and entitlement check, Blastr is the relay in the middle: it gates by pubkey, resolves the relay set, and fans out asynchronously.
+**Why Blastr?** If you run a Nostr app and want paid subscribers to broadcast to a curated set of relays from any client (your app, Damus, etc.) with one consistent policy and entitlement check, Blastr is the relay in the middle: it gates by pubkey, resolves the relay set, and fans out asynchronously. [Nostr](https://nostr.com) is a decentralized protocol; see the [NIPs](https://github.com/nostr-protocol/nips) for the relay and event spec.
 
 ---
 
@@ -21,6 +21,7 @@ Blastr is the **SmartFlowSocial broadcast relay** — a write-focused managed No
 - [Project structure](#project-structure)
 - [API reference](#api-reference)
 - [Configuration](#configuration)
+- [First-time setup (before first deploy)](#first-time-setup-before-first-deploy)
 - [Setup (D1, KV, Queues)](#setup-d1-kv-queues)
 - [Development](#development)
 - [Testing](#testing)
@@ -141,7 +142,7 @@ curl -s -H "Accept: application/nostr+json" http://localhost:8787/
 curl -s http://localhost:8787/health
 ```
 
-**Submit a Nostr event** (requires the event’s pubkey to be entitled in `blastr_entitlements`). Body is a signed Nostr event object or `["EVENT", event]`:
+**Submit a Nostr event** (requires the event’s pubkey to be entitled in `blastr_entitlements`). Body is a signed Nostr event object or `["EVENT", event]`. Replace `id`, `pubkey`, and `sig` with a real signed event (e.g. from [nostr-tools](https://github.com/nostr-dev-kit/ndk) or your Nostr client):
 
 ```bash
 curl -s -X POST http://localhost:8787/event \
@@ -178,7 +179,8 @@ Success response: `["OK", "<event_id>", true, ""]`. See [docs/API.md](docs/API.m
 | Method              | Path         | Description                                                                                                          |
 | ------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `GET`               | `/`          | NIP-11 relay info when `Accept: application/nostr+json`; otherwise plain text.                                       |
-| `GET`               | `/health`    | Health check. Returns `{ "status": "ok", "timestamp": "…" }`.                                                        |
+| `GET`               | `/health`    | Liveness probe. Returns `{ "status": "ok", "timestamp": "…" }`.                                                     |
+| `GET`               | `/ready`     | Readiness probe. Checks D1, KV, queue bindings; returns 503 if any fail.                                            |
 | `POST`              | `/event`     | Submit a Nostr event. Body: event object or `["EVENT", event]`. Returns Nostr `["OK", event_id, accepted, message]`. |
 | `GET` / `WebSocket` | `/` or `/ws` | Nostr WebSocket relay (event submission).                                                                            |
 
@@ -203,11 +205,23 @@ See [docs/API.md](docs/API.md) for request/response details.
 - **Entitlements** — Populate `blastr_entitlements` (e.g. from your subscription service). Only pubkeys with `status` in `active` or `grace` can publish.
 - **System relays** — Managed in `blastr_system_relays`. Seed data: `migrations/0003_seed_system_relays.sql`.
 - **User policy** — Per-pubkey mode and allow/block list in `blastr_user_policies` and `blastr_policy_relays`. Default: blacklist with no blocked relays.
-- **Environment** — Optional: `API_TOKEN`, `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `ENVIRONMENT`. See `src/config/env.ts` and `wrangler.toml`.
+- **Event constraints** — Allowed Nostr event kinds: `0` (metadata), `1` (short note), `6` (repost, NIP-18), `30023` (long-form, NIP-23). Max event body size: 64 KB. See `src/config/env.ts`.
+- **Environment variables** — See table below. Full validation in `src/config/env.ts` and bindings in `wrangler.toml`.
+
+| Variable               | Purpose                                      | Default / notes                                      |
+| ---------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| `API_TOKEN`            | Protects admin routes; required when set     | If unset, admin routes are unprotected               |
+| `RATE_LIMIT_REQUESTS`  | Per-pubkey limit (ingress)                   | `100`                                                |
+| `RATE_LIMIT_WINDOW_MS` | Window for rate limit (ms)                   | `60000`                                              |
+| `CORS_ENABLED`         | Enable CORS for `/event` and admin           | `"true"` to enable                                   |
+| `CORS_ORIGINS`         | Allowed origins (comma-separated)            | Required if `CORS_ENABLED` is true                   |
+| `ENVIRONMENT`          | Label for logs (e.g. `production`, `staging`) | Optional                                             |
 
 ---
 
 ## First-time setup (before first deploy)
+
+**Production deploy checklist:** (1) Create Queue and KV namespaces in the same Cloudflare account you deploy from; (2) Create D1, run migrations, add IDs to `wrangler.toml`; (3) Set `API_TOKEN` (and optionally `CORS_ORIGINS`) as secrets or in env; (4) Run `pnpm deploy`. See [docs/OPERATIONS.md](docs/OPERATIONS.md) for runbooks.
 
 **Deploy will fail** if the Queue and KV namespaces don’t exist. Do this once before deploying (or before connecting Git to Cloudflare):
 
@@ -316,9 +330,10 @@ Coverage thresholds are enforced in `vitest.config.ts`.
 | [docs/VERSIONING.md](docs/VERSIONING.md)                                 | API versioning policy and future breaking changes.                    |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md)                                 | SLOs, runbooks, health/readiness, fanout and poison-message handling. |
 | [docs/RELEASE.md](docs/RELEASE.md)                                       | Release process, version bump, changelog, and tagging.                |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                                       | How to run checks, write tests, and submit changes.                   |
+| [docs/openapi.yaml](docs/openapi.yaml)                                   | OpenAPI 3 spec for the HTTP API (validated in CI).                    |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                       | How to run checks, write tests, and submit changes.                    |
 | [SECURITY.md](SECURITY.md)                                               | Reporting vulnerabilities and scope.                                  |
-| [CHANGELOG.md](CHANGELOG.md)                                             | User-facing and breaking changes per release.                         |
+| [CHANGELOG.md](CHANGELOG.md)                                             | User-facing and breaking changes per release.                          |
 
 ---
 
