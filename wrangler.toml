@@ -56,3 +56,8 @@ max_retries = 3
 visibility_timeout_ms = 30000
 [env.staging.vars]
 ENVIRONMENT = "staging"
+
+[observability]
+[observability.logs]
+enabled = false
+invocation_logs = true
