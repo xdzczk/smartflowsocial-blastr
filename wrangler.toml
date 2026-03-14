@@ -11,10 +11,11 @@ kv_namespaces = [
 ]
 
 # D1 for blastr_* tables (jobs, policy, catalog, etc.)
+# database_id must be from the same Cloudflare account as your deploy (see README Setup).
 [[d1_databases]]
 binding = "DB"
 database_name = "blastr-db"
-database_id = "82736a30-841d-4c24-87d8-788763dacb01"
+database_id = "abb73ea1-e9ba-4d6b-966a-ffbb8d7a731e"
 
 # Single publish queue (create with: wrangler queues create blastr-publish-jobs)
 [[queues.producers]]
