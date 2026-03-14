@@ -222,6 +222,10 @@ See [docs/API.md](docs/API.md) for request/response details.
 
 Then run `pnpm deploy` or use the Git integration.
 
+**If deploy says "KV namespace '...' not found":** The IDs in `wrangler.toml` are from a different Cloudflare account than the one running the deploy. In the **same account** that is connected to your Git (the deploy account), create the KV namespaces and optionally D1/Queue, then put the **new** IDs from that account into `wrangler.toml`.
+
+**Wrangler 4 (multiple environments):** To deploy production from Git, set the deploy command to `npx wrangler deploy --env=""`. For staging: `npx wrangler deploy --env=staging`.
+
 ---
 
 ## Setup (D1, KV, Queues)
