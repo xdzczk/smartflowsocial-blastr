@@ -8,8 +8,8 @@ import { getJobById } from "../services/db";
 import { createAttempt, updateJobStatus } from "../services/jobs";
 import type { Env, PublishJobMessage, SerializedNostrEvent } from "../types";
 
-const RELAY_SEND_TIMEOUT_MS = 8_000;
-const FANOUT_CONCURRENCY = 8;
+const RELAY_SEND_TIMEOUT_MS = 5_000;
+const FANOUT_CONCURRENCY = 32;
 const RELAY_MAX_RETRIES = 2;
 const RELAY_RETRY_DELAY_MS = 500;
 /** Cap relays per job so a single run doesn't exceed limits. Requires limits.cpu_ms in wrangler.toml (e.g. 180000) for 100+. */

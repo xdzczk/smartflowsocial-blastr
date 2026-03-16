@@ -235,6 +235,12 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
     _ctx: ExecutionContext,
   ): Promise<void> {
     const logger = new ConsoleLogger();
+    // First log so we can confirm the queue consumer is invoked at all (trigger: blastr-publish-jobs)
+    logger.info("blastr queue consumer invoked", {
+      queue: "blastr-publish-jobs",
+      messageCount: batch.messages.length,
+      jobIds: batch.messages.map((m) => m.body.jobId),
+    });
     logger.info("Queue batch received", {
       messageCount: batch.messages.length,
       jobIds: batch.messages.map((m) => m.body.jobId),
