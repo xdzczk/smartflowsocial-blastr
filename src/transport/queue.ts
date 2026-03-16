@@ -12,6 +12,8 @@ const RELAY_SEND_TIMEOUT_MS = 8_000;
 const FANOUT_CONCURRENCY = 8;
 const RELAY_MAX_RETRIES = 2;
 const RELAY_RETRY_DELAY_MS = 500;
+/** Cap relays per job so a single run doesn't exceed limits. Requires limits.cpu_ms in wrangler.toml (e.g. 180000) for 100+. */
+const MAX_RELAYS_PER_FANOUT = 150;
 
 export type RelayErrorKind = "transient" | "permanent";
 
@@ -201,15 +203,30 @@ export async function processQueueMessage(
     return;
   }
 
+  const relaysToUse =
+    resolvedRelays.length > MAX_RELAYS_PER_FANOUT
+      ? resolvedRelays.slice(0, MAX_RELAYS_PER_FANOUT)
+      : resolvedRelays;
+  if (relaysToUse.length < resolvedRelays.length) {
+    logger.info("Fanout capped relays to stay within execution limit", {
+      jobId,
+      requested: resolvedRelays.length,
+      capped: relaysToUse.length,
+      maxPerFanout: MAX_RELAYS_PER_FANOUT,
+    });
+  }
   logger.info("Fanout starting", {
     jobId,
     eventId: event.id,
-    relayCount: resolvedRelays.length,
-    relays: resolvedRelays,
+    relayCount: relaysToUse.length,
+    relays: relaysToUse,
   });
 
-  if (resolvedRelays.length === 0) {
-    logger.warn("Fanout skipped: no relays to send to", { jobId, eventId: event.id });
+  if (relaysToUse.length === 0) {
+    logger.warn("Fanout skipped: no relays to send to — note will not appear on other relays. Check blastr_system_relays (D1) has enabled rows and, if user uses whitelist policy, that they have allowed relays.", {
+      jobId,
+      eventId: event.id,
+    });
     await updateJobStatus(env.DB, jobIdNum, "failed", { success: 0, failed: 0 });
     recordFanoutFailed();
     recordFanoutLatencyMs(Date.now() - fanoutStartMs);
@@ -228,7 +245,7 @@ export async function processQueueMessage(
   });
 
   const results = await _runWithConcurrencyImpl(
-    resolvedRelays,
+    relaysToUse,
     FANOUT_CONCURRENCY,
     (relayUrl) => sendEventToRelay(relayUrl, event),
   );
@@ -241,8 +258,8 @@ export async function processQueueMessage(
     errorCode?: string;
     latencyMs: number;
   }> = [];
-  for (let i = 0; i < resolvedRelays.length; i++) {
-    const relayUrl = resolvedRelays[i];
+  for (let i = 0; i < relaysToUse.length; i++) {
+    const relayUrl = relaysToUse[i];
     const result = results[i];
     if (relayUrl === undefined || result === undefined) continue;
     const status = result.success ? "ok" : "failed";
@@ -288,7 +305,7 @@ export async function processQueueMessage(
     success: successCount,
     failed: failedCount,
     status: finalStatus,
-    totalRelays: resolvedRelays.length,
+    totalRelays: relaysToUse.length,
     relayResults,
   });
 }

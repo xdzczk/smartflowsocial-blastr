@@ -57,6 +57,11 @@ visibility_timeout_ms = 30000
 [env.staging.vars]
 ENVIRONMENT = "staging"
 
+# Allow queue consumer to fan out to 100+ relays (default 30s is too low).
+# Max 300000 (5 min). 3 min is enough for 100+ relays at 8 concurrency.
+[limits]
+cpu_ms = 180000
+
 [observability]
 [observability.logs]
 enabled = true
