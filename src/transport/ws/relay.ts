@@ -19,13 +19,14 @@ function sendNotice(server: WebSocket, message: string): void {
 /**
  * Handle a single incoming WebSocket message (Nostr relay protocol).
  * Expects ["EVENT", event] and responds with ["OK", eventId, accepted, message].
- * Uses deferEnqueue + ctx.waitUntil so we send OK immediately and avoid runtime "hung" timeout.
+ * Sends OK immediately and runs enqueue in background (no waitUntil) so the request
+ * returns quickly and the runtime does not cancel with "hung" during D1/queue/KV work.
  */
 async function handleEventMessage(
   server: WebSocket,
   env: Env,
   logger: Logger,
-  ctx: ExecutionContext,
+  _ctx: ExecutionContext,
   event: MessageEvent,
 ): Promise<void> {
   let raw: unknown;
@@ -65,11 +66,9 @@ async function handleEventMessage(
   if (result.ok) {
     server.send(toNostrOk(result.eventId, true, ""));
     if (result.enqueuePayload) {
-      ctx.waitUntil(
-        runEnqueue(env, logger, result.enqueuePayload).catch((err) => {
-          logger.error("WS: enqueue failed", { error: err });
-        }),
-      );
+      void runEnqueue(env, logger, result.enqueuePayload).catch((err) => {
+        logger.error("WS: enqueue failed", { error: err });
+      });
     }
   } else {
     const eventId = (payload as Record<string, unknown>)["id"] ?? "";
