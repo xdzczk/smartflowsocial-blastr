@@ -54,16 +54,24 @@ export interface PublishJobRow {
   resolved_relays: string;
 }
 
+/** Normalize hex pubkey to lowercase so lookups match regardless of event/signer case. */
+function normalizePubkeyHex(pubkey: string): string {
+  if (typeof pubkey !== "string" || pubkey.length !== 64) return pubkey;
+  if (/^[0-9a-fA-F]{64}$/.test(pubkey)) return pubkey.toLowerCase();
+  return pubkey;
+}
+
 export async function getEntitlement(
   db: D1Database,
   pubkey: string,
 ): Promise<EntitlementRow | null> {
+  const key = normalizePubkeyHex(pubkey);
   const stmt = db
     .prepare(
       `SELECT pubkey, plan_tier, status, rate_limit_profile, updated_at
      FROM blastr_entitlements WHERE pubkey = ? AND status IN (?, ?)`,
     )
-    .bind(pubkey, "active", "grace");
+    .bind(key, "active", "grace");
   const row = await stmt.first<EntitlementRow>();
   return row ?? null;
 }
@@ -72,11 +80,12 @@ export async function getUserPolicy(
   db: D1Database,
   pubkey: string,
 ): Promise<UserPolicyRow | null> {
+  const key = normalizePubkeyHex(pubkey);
   const stmt = db
     .prepare(
       `SELECT pubkey, mode, enabled, updated_at FROM blastr_user_policies WHERE pubkey = ?`,
     )
-    .bind(pubkey);
+    .bind(key);
   const row = await stmt.first<UserPolicyRow>();
   return row ?? null;
 }
@@ -85,11 +94,12 @@ export async function getPolicyRelays(
   db: D1Database,
   pubkey: string,
 ): Promise<PolicyRelayRow[]> {
+  const key = normalizePubkeyHex(pubkey);
   const stmt = db
     .prepare(
       `SELECT pubkey, relay_url, action, created_at FROM blastr_policy_relays WHERE pubkey = ? ORDER BY created_at ASC`,
     )
-    .bind(pubkey);
+    .bind(key);
   const { results } = await stmt.all<PolicyRelayRow>();
   return results;
 }
@@ -144,6 +154,7 @@ export async function upsertEntitlement(
     rate_limit_profile?: string | null;
   },
 ): Promise<void> {
+  const key = normalizePubkeyHex(params.pubkey);
   const now = Math.floor(Date.now() / 1000);
   await db
     .prepare(
@@ -155,13 +166,7 @@ export async function upsertEntitlement(
          rate_limit_profile = excluded.rate_limit_profile,
          updated_at = excluded.updated_at`,
     )
-    .bind(
-      params.pubkey,
-      params.plan_tier,
-      params.status,
-      params.rate_limit_profile ?? null,
-      now,
-    )
+    .bind(key, params.plan_tier, params.status, params.rate_limit_profile ?? null, now)
     .run();
 }
 
@@ -169,6 +174,7 @@ export async function upsertUserPolicy(
   db: D1Database,
   params: { pubkey: string; mode: UserPolicyMode; enabled?: number },
 ): Promise<void> {
+  const key = normalizePubkeyHex(params.pubkey);
   const now = Math.floor(Date.now() / 1000);
   const enabled = params.enabled ?? 1;
   await db
@@ -180,7 +186,7 @@ export async function upsertUserPolicy(
          enabled = excluded.enabled,
          updated_at = excluded.updated_at`,
     )
-    .bind(params.pubkey, params.mode, enabled, now)
+    .bind(key, params.mode, enabled, now)
     .run();
 }
 
@@ -188,6 +194,7 @@ export async function addPolicyRelay(
   db: D1Database,
   params: { pubkey: string; relay_url: string; action: PolicyRelayAction },
 ): Promise<void> {
+  const key = normalizePubkeyHex(params.pubkey);
   const now = Math.floor(Date.now() / 1000);
   await db
     .prepare(
@@ -195,7 +202,7 @@ export async function addPolicyRelay(
        VALUES (?, ?, ?, ?)
        ON CONFLICT(pubkey, relay_url) DO UPDATE SET action = excluded.action, created_at = excluded.created_at`,
     )
-    .bind(params.pubkey, params.relay_url, params.action, now)
+    .bind(key, params.relay_url, params.action, now)
     .run();
 }
 
@@ -204,10 +211,11 @@ export async function removePolicyRelay(
   pubkey: string,
   relayUrl: string,
 ): Promise<void> {
+  const key = normalizePubkeyHex(pubkey);
   await db
     .prepare(
       `DELETE FROM blastr_policy_relays WHERE pubkey = ? AND relay_url = ?`,
     )
-    .bind(pubkey, relayUrl)
+    .bind(key, relayUrl)
     .run();
 }
