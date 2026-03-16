@@ -95,9 +95,11 @@ export async function runIngressPipeline(
     };
   }
 
-  const systemRelays = await loadSystemRelayUniverse(env.DB);
-  const policyRow = await getUserPolicy(env.DB, event.pubkey);
-  const relayRows = await getPolicyRelays(env.DB, event.pubkey);
+  const [systemRelays, policyRow, relayRows] = await Promise.all([
+    loadSystemRelayUniverse(env.DB),
+    getUserPolicy(env.DB, event.pubkey),
+    getPolicyRelays(env.DB, event.pubkey),
+  ]);
   const userPolicy = toUserPolicyInput(policyRow, relayRows);
   const resolvedRelays = resolveEffectiveRelays(systemRelays, userPolicy);
 
@@ -145,7 +147,10 @@ export async function runIngressPipeline(
   };
   await env.BLASTR_PUBLISH_QUEUE.send(message);
 
-  await markPublished(event.id, env.PUBLISHED_NOTES);
+  // Don't block the response on KV write; respond to client immediately to avoid runtime "hung" timeout
+  void markPublished(event.id, env.PUBLISHED_NOTES).catch(() => {
+    /* best-effort dedupe; queue consumer will still process */
+  });
 
   logger.info("Event accepted and queued", {
     eventId: event.id,
