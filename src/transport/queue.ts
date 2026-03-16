@@ -201,6 +201,21 @@ export async function processQueueMessage(
     return;
   }
 
+  logger.info("Fanout starting", {
+    jobId,
+    eventId: event.id,
+    relayCount: resolvedRelays.length,
+    relays: resolvedRelays,
+  });
+
+  if (resolvedRelays.length === 0) {
+    logger.warn("Fanout skipped: no relays to send to", { jobId, eventId: event.id });
+    await updateJobStatus(env.DB, jobIdNum, "failed", { success: 0, failed: 0 });
+    recordFanoutFailed();
+    recordFanoutLatencyMs(Date.now() - fanoutStartMs);
+    return;
+  }
+
   const job = await getJobById(env.DB, jobIdNum);
   if (!job) {
     logger.warn("Job not found", { jobId });
@@ -220,6 +235,12 @@ export async function processQueueMessage(
 
   let successCount = 0;
   let failedCount = 0;
+  const relayResults: Array<{
+    relay: string;
+    success: boolean;
+    errorCode?: string;
+    latencyMs: number;
+  }> = [];
   for (let i = 0; i < resolvedRelays.length; i++) {
     const relayUrl = resolvedRelays[i];
     const result = results[i];
@@ -230,6 +251,19 @@ export async function processQueueMessage(
       relayUrl,
       attemptNumber: result.attemptNumber,
       status,
+      errorCode: result.errorCode ?? null,
+      latencyMs: result.latencyMs,
+    });
+    relayResults.push({
+      relay: relayUrl,
+      success: result.success,
+      errorCode: result.errorCode,
+      latencyMs: result.latencyMs,
+    });
+    logger.info("Fanout relay", {
+      jobId,
+      relay: relayUrl,
+      success: result.success,
       errorCode: result.errorCode ?? null,
       latencyMs: result.latencyMs,
     });
@@ -250,8 +284,11 @@ export async function processQueueMessage(
 
   logger.info("Fanout complete", {
     jobId,
+    eventId: event.id,
     success: successCount,
     failed: failedCount,
     status: finalStatus,
+    totalRelays: resolvedRelays.length,
+    relayResults,
   });
 }

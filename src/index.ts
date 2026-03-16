@@ -235,6 +235,10 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
     _ctx: ExecutionContext,
   ): Promise<void> {
     const logger = new ConsoleLogger();
+    logger.info("Queue batch received", {
+      messageCount: batch.messages.length,
+      jobIds: batch.messages.map((m) => m.body.jobId),
+    });
     for (const msg of batch.messages) {
       const correlationId = msg.body.correlationId ?? `job-${msg.body.jobId}`;
       logger.setCorrelationId(correlationId);
