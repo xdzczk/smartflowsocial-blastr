@@ -79,6 +79,8 @@ async function handleEventMessage(
       ),
     );
   }
+  // Close after handling EVENT so the runtime sees the request as completed (avoids "hung" cancel).
+  server.close();
 }
 
 export function handleWebSocketRelay(
