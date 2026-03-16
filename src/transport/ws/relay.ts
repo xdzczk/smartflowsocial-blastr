@@ -19,14 +19,14 @@ function sendNotice(server: WebSocket, message: string): void {
 /**
  * Handle a single incoming WebSocket message (Nostr relay protocol).
  * Expects ["EVENT", event] and responds with ["OK", eventId, accepted, message].
- * Sends OK immediately and runs enqueue in background (no waitUntil) so the request
- * returns quickly and the runtime does not cancel with "hung" during D1/queue/KV work.
+ * Sends OK, schedules enqueue via waitUntil (so it runs to completion), then closes.
+ * Without waitUntil, close() tears down the request and cancels fire-and-forget enqueue.
  */
 async function handleEventMessage(
   server: WebSocket,
   env: Env,
   logger: Logger,
-  _ctx: ExecutionContext,
+  ctx: ExecutionContext,
   event: MessageEvent,
 ): Promise<void> {
   let raw: unknown;
@@ -66,9 +66,11 @@ async function handleEventMessage(
   if (result.ok) {
     server.send(toNostrOk(result.eventId, true, ""));
     if (result.enqueuePayload) {
-      void runEnqueue(env, logger, result.enqueuePayload).catch((err) => {
-        logger.error("WS: enqueue failed", { error: err });
-      });
+      ctx.waitUntil(
+        runEnqueue(env, logger, result.enqueuePayload).catch((err) => {
+          logger.error("WS: enqueue failed", { error: err });
+        }),
+      );
     }
   } else {
     const eventId = (payload as Record<string, unknown>)["id"] ?? "";
@@ -79,7 +81,6 @@ async function handleEventMessage(
       ),
     );
   }
-  // Close after handling EVENT so the runtime sees the request as completed (avoids "hung" cancel).
   server.close();
 }
 
