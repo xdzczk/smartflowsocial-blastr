@@ -103,7 +103,7 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       const client = pair[0];
       const server = pair[1];
       server.accept();
-      handleWebSocketRelay(server, env, logger);
+      handleWebSocketRelay(server, env, logger, _ctx);
       return new Response(null, { status: 101, webSocket: client });
     }
 

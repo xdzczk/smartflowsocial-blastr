@@ -11,12 +11,19 @@ import { getEntitlement, getPolicyRelays, getUserPolicy } from "../services/db";
 import { isPublished, markPublished } from "../services/dedupe";
 import { ensureJob } from "../services/jobs";
 import { checkRateLimit } from "../services/rate-limit";
-import type { Env, PublishJobMessage, PublishJobSource } from "../types";
+import type {
+  Env,
+  PublishJobMessage,
+  PublishJobSource,
+  SerializedNostrEvent,
+} from "../types";
 
 export interface PipelineResultOk {
   ok: true;
   jobId: number;
   eventId: string;
+  /** Set when deferEnqueue: true; caller must run runEnqueue(env, logger, this) via ctx.waitUntil. */
+  enqueuePayload?: EnqueuePayload;
 }
 
 export interface PipelineResultReject {
@@ -26,12 +33,21 @@ export interface PipelineResultReject {
 
 export type PipelineResult = PipelineResultOk | PipelineResultReject;
 
+/** Payload to enqueue after sending OK to client (used with ctx.waitUntil to avoid runtime "hung" timeout). */
+export interface EnqueuePayload {
+  event: SerializedNostrEvent;
+  resolvedRelays: string[];
+  source: PublishJobSource;
+}
+
 export async function runIngressPipeline(
   env: Env,
   rawEvent: unknown,
   source: PublishJobSource,
   logger: Logger,
+  options?: { deferEnqueue?: boolean },
 ): Promise<PipelineResult> {
+  const deferEnqueue = options?.deferEnqueue === true;
   const validation = validateEvent(rawEvent);
   if (!validation.ok) {
     logger.warn("Ingress rejected: validation failed", {
@@ -120,6 +136,15 @@ export async function runIngressPipeline(
     };
   }
 
+  if (deferEnqueue) {
+    return {
+      ok: true,
+      jobId: 0,
+      eventId: event.id,
+      enqueuePayload: { event, resolvedRelays, source },
+    };
+  }
+
   const { jobId, inserted } = await ensureJob(env.DB, {
     eventId: event.id,
     pubkey: event.pubkey,
@@ -158,4 +183,46 @@ export async function runIngressPipeline(
     relayCount: resolvedRelays.length,
   });
   return { ok: true, jobId, eventId: event.id };
+}
+
+/**
+ * Run ensureJob, queue.send, markPublished. Use with ctx.waitUntil() after sending OK to client
+ * so the runtime keeps the request alive and we avoid "hung" timeout.
+ */
+export async function runEnqueue(
+  env: Env,
+  logger: Logger,
+  payload: EnqueuePayload,
+): Promise<void> {
+  const { event, resolvedRelays, source } = payload;
+  const correlationId = logger.getCorrelationId() ?? undefined;
+  const { jobId, inserted } = await ensureJob(env.DB, {
+    eventId: event.id,
+    pubkey: event.pubkey,
+    source,
+    resolvedRelays,
+  });
+  if (!inserted) {
+    logger.info("Event already has job (idempotent)", {
+      eventId: event.id,
+      jobId,
+    });
+    return;
+  }
+  const message: PublishJobMessage = {
+    jobId: String(jobId),
+    event,
+    pubkey: event.pubkey,
+    resolvedRelays,
+    source,
+    receivedAt: Date.now(),
+    ...(correlationId && { correlationId }),
+  };
+  await env.BLASTR_PUBLISH_QUEUE.send(message);
+  await markPublished(event.id, env.PUBLISHED_NOTES);
+  logger.info("Event accepted and queued", {
+    eventId: event.id,
+    jobId,
+    relayCount: resolvedRelays.length,
+  });
 }

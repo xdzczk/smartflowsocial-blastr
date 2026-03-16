@@ -1,7 +1,8 @@
+import type { ExecutionContext } from "@cloudflare/workers-types";
 import type { Logger } from "../../logger";
 import type { Env, PublishJobSource } from "../../types";
 import { toNostrOk, mapErrorToNostrMessage } from "../http/mappers";
-import { runIngressPipeline } from "../pipeline";
+import { runEnqueue, runIngressPipeline } from "../pipeline";
 
 const WS_SOURCE: PublishJobSource = "external-client";
 
@@ -18,12 +19,13 @@ function sendNotice(server: WebSocket, message: string): void {
 /**
  * Handle a single incoming WebSocket message (Nostr relay protocol).
  * Expects ["EVENT", event] and responds with ["OK", eventId, accepted, message].
- * Invalid JSON, bad format, unsupported types (REQ, CLOSE, etc.), and AUTH get NOTICE.
+ * Uses deferEnqueue + ctx.waitUntil so we send OK immediately and avoid runtime "hung" timeout.
  */
 async function handleEventMessage(
   server: WebSocket,
   env: Env,
   logger: Logger,
+  ctx: ExecutionContext,
   event: MessageEvent,
 ): Promise<void> {
   let raw: unknown;
@@ -56,10 +58,19 @@ async function handleEventMessage(
     return;
   }
 
-  const result = await runIngressPipeline(env, payload, WS_SOURCE, logger);
+  const result = await runIngressPipeline(env, payload, WS_SOURCE, logger, {
+    deferEnqueue: true,
+  });
 
   if (result.ok) {
     server.send(toNostrOk(result.eventId, true, ""));
+    if (result.enqueuePayload) {
+      ctx.waitUntil(
+        runEnqueue(env, logger, result.enqueuePayload).catch((err) => {
+          logger.error("WS: enqueue failed", { error: err });
+        }),
+      );
+    }
   } else {
     const eventId = (payload as Record<string, unknown>)["id"] ?? "";
     server.send(
@@ -75,9 +86,10 @@ export function handleWebSocketRelay(
   server: WebSocket,
   env: Env,
   logger: Logger,
+  ctx: ExecutionContext,
 ): void {
   server.addEventListener("message", (event: MessageEvent) => {
-    void handleEventMessage(server, env, logger, event);
+    void handleEventMessage(server, env, logger, ctx, event);
   });
 
   server.addEventListener("close", () => {
