@@ -92,6 +92,21 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       );
     }
 
+    // WebSocket upgrade (Nostr relay): path / or /ws (no token; entitlement in pipeline)
+    // Must be checked before GET / so Upgrade: websocket gets 101, not 200 + body
+    const upgradeHeader = request.headers.get("Upgrade");
+    if (
+      (url.pathname === "/" || url.pathname === "/ws") &&
+      upgradeHeader === "websocket"
+    ) {
+      const pair = new WebSocketPair();
+      const client = pair[0];
+      const server = pair[1];
+      server.accept();
+      handleWebSocketRelay(server, env, logger);
+      return new Response(null, { status: 101, webSocket: client });
+    }
+
     if (url.pathname === "/" && request.method === "GET") {
       const accept = request.headers.get("Accept") ?? "";
       const wantsNostrJson =
@@ -113,20 +128,6 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
         "Blastr relay. Use Nostr client with wss://... or POST /event",
         { status: 200 },
       );
-    }
-
-    // WebSocket upgrade (Nostr relay): path / or /ws (no token; entitlement in pipeline)
-    const upgradeHeader = request.headers.get("Upgrade");
-    if (
-      (url.pathname === "/" || url.pathname === "/ws") &&
-      upgradeHeader === "websocket"
-    ) {
-      const pair = new WebSocketPair();
-      const client = pair[0];
-      const server = pair[1];
-      server.accept();
-      handleWebSocketRelay(server, env, logger);
-      return new Response(null, { status: 101, webSocket: client });
     }
 
     // /event: CORS preflight (OPTIONS) and POST (no token; entitlement in pipeline)
