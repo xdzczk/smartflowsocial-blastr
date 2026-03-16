@@ -33,11 +33,20 @@ export async function runIngressPipeline(
   logger: Logger,
 ): Promise<PipelineResult> {
   const validation = validateEvent(rawEvent);
-  if (!validation.ok) return { ok: false, error: validation.error };
+  if (!validation.ok) {
+    logger.warn("Ingress rejected: validation failed", {
+      message: validation.error.message,
+    });
+    return { ok: false, error: validation.error };
+  }
   const event = validation.event;
 
   const entitlement = await getEntitlement(env.DB, event.pubkey);
   if (!entitlement) {
+    logger.warn("Ingress rejected: pubkey not entitled", {
+      eventId: event.id,
+      pubkeyPrefix: event.pubkey.slice(0, 16),
+    });
     return {
       ok: false,
       error: new BlastrError(
@@ -54,6 +63,10 @@ export async function runIngressPipeline(
     rateLimitProfile: entitlement.rate_limit_profile,
   });
   if (!rateLimit.allowed) {
+    logger.warn("Ingress rejected: rate limit exceeded", {
+      eventId: event.id,
+      pubkeyPrefix: event.pubkey.slice(0, 16),
+    });
     return {
       ok: false,
       error: new BlastrError(
@@ -69,6 +82,7 @@ export async function runIngressPipeline(
 
   const published = await isPublished(event.id, env.PUBLISHED_NOTES);
   if (published) {
+    logger.info("Ingress rejected: duplicate event", { eventId: event.id });
     return {
       ok: false,
       error: new BlastrError(
@@ -88,6 +102,10 @@ export async function runIngressPipeline(
   const resolvedRelays = resolveEffectiveRelays(systemRelays, userPolicy);
 
   if (resolvedRelays.length === 0) {
+    logger.warn("Ingress rejected: no relays configured", {
+      eventId: event.id,
+      pubkeyPrefix: event.pubkey.slice(0, 16),
+    });
     return {
       ok: false,
       error: new BlastrError(
