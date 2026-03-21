@@ -79,7 +79,7 @@ Body is a Nostr OK message:
   ```
 
 - Possible messages include:
-  - Invalid signature, disallowed kind (allowed: 0, 1, 6, 30023), event too large
+  - Invalid signature, disallowed kind (allowed: 0, 1, 4, 6, 1059, 1068, 1018, 30023), event too large
   - Not entitled (e.g. “paid SmartFlowSocial subscription required”)
   - Rate limit exceeded
   - Duplicate event

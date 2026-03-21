@@ -69,8 +69,13 @@ export function validateEnvironment(
   }
 }
 
-/** Allowed Nostr event kinds: 0 = metadata, 1 = short note, 6 = repost (NIP-18), 30023 = long-form (NIP-23), 4 = legacy DM (NIP-04), 1059 = gift wrap (NIP-59 / NIP-17 DMs). */
-export const ALLOWED_KINDS = [0, 1, 4, 6, 1059, 30023] as const;
+/**
+ * Allowed Nostr event kinds:
+ * 0 = metadata, 1 = short note, 6 = repost (NIP-18), 30023 = long-form (NIP-23),
+ * 4 = legacy DM (NIP-04), 1059 = gift wrap (NIP-59 / NIP-17 DMs),
+ * 1068 / 1018 = polls / votes (NIP-88 draft).
+ */
+export const ALLOWED_KINDS = [0, 1, 4, 6, 1059, 1068, 1018, 30023] as const;
 
 /** Max serialized JSON event size (gift-wrapped DMs can be larger than notes). */
 export const MAX_EVENT_SIZE = 96 * 1024;

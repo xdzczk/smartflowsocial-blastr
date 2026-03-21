@@ -205,7 +205,7 @@ See [docs/API.md](docs/API.md) for request/response details.
 - **Entitlements** — Populate `blastr_entitlements` (e.g. from your subscription service). Only pubkeys with `status` in `active` or `grace` can publish.
 - **System relays** — Managed in `blastr_system_relays`. Seed data: `migrations/0003_seed_system_relays.sql`.
 - **User policy** — Per-pubkey mode and allow/block list in `blastr_user_policies` and `blastr_policy_relays`. Default: blacklist with no blocked relays.
-- **Event constraints** — Allowed Nostr event kinds: `0` (metadata), `1` (short note), `6` (repost, NIP-18), `30023` (long-form, NIP-23). Max event body size: 64 KB. See `src/config/env.ts`.
+- **Event constraints** — Allowed Nostr event kinds: `0` (metadata), `1` (short note), `4` (NIP-04 DM), `6` (repost, NIP-18), `1059` (gift wrap), `1068` / `1018` (NIP-88 polls/votes, draft), `30023` (long-form, NIP-23). Max serialized event size: see `MAX_EVENT_SIZE` in `src/config/env.ts`.
 - **Environment variables** — See table below. Full validation in `src/config/env.ts` and bindings in `wrangler.toml`.
 
 | Variable               | Purpose                                      | Default / notes                                      |

@@ -181,7 +181,7 @@ No outbound relay calls in this path; only KV/DB/cache and queue send.
 - Policy + relay catalog (in-memory or KV cache); resolve relay set per pubkey; snapshot on job.
 - Single publish queue; consumer fans out to job’s relay list, records attempts.
 - Basic diagnostics: job + attempts in DB.
-- Allowed kinds: 0 (metadata), 1 (short note), 6 (repost, NIP-18), 30023 (long-form, NIP-23); reject rest.
+- Allowed kinds: 0 (metadata), 1 (short note), 4 (NIP-04 DM), 6 (repost, NIP-18), 1059 (gift wrap), 1068/1018 (NIP-88 polls/votes, draft), 30023 (long-form, NIP-23); reject rest.
 - Rate limit and max event size; dedupe by event id.
 
 **Phase 2**
