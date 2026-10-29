@@ -127,7 +127,13 @@ describe("processQueueMessage", () => {
       resolved_relays: JSON.stringify([WSS_R1]),
     });
     vi.mocked(jobs.updateJobStatus).mockResolvedValue();
-    vi.mocked(jobs.createAttempt).mockResolvedValue();
+    const callOrder: string[] = [];
+    vi.mocked(jobs.createAttempt).mockImplementation(async () => {
+      callOrder.push("attempt");
+    });
+    vi.mocked(db.recordSystemRelayWriteHealth).mockImplementation(async () => {
+      callOrder.push("health");
+    });
 
     const body: PublishJobMessage = {
       ...baseMessage,
@@ -136,6 +142,11 @@ describe("processQueueMessage", () => {
     };
     await processQueueMessage(body, env(), logger);
 
+    expect(callOrder).toEqual(["attempt", "health"]);
+    expect(db.recordSystemRelayWriteHealth).toHaveBeenCalledWith(
+      expect.anything(),
+      { relayUrl: WSS_R1, success: true },
+    );
     expect(jobs.updateJobStatus).toHaveBeenLastCalledWith(
       expect.anything(),
       1,
@@ -188,6 +199,10 @@ describe("processQueueMessage", () => {
       "failed",
       { success: 0, failed: 1 },
     );
+    expect(db.recordSystemRelayWriteHealth).toHaveBeenCalledWith(
+      expect.anything(),
+      { relayUrl: WSS_R1, success: false },
+    );
   });
 
   it("updates job status to partial when some relays succeed", async () => {
@@ -238,5 +253,6 @@ describe("processQueueMessage", () => {
       "partial",
       { success: 1, failed: 1 },
     );
+    expect(db.recordSystemRelayWriteHealth).toHaveBeenCalledTimes(2);
   });
 });

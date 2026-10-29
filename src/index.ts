@@ -4,6 +4,7 @@ import type {
 } from "@cloudflare/workers-types";
 
 import { validateEnvironment } from "./config/env";
+import { syncSystemRelayCatalog } from "./core/relay-catalog-sync";
 import { checkReadiness } from "./health";
 import { ConsoleLogger } from "./logger";
 import {
@@ -264,6 +265,19 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
         });
         // Do not ack: un-acked messages will be retried by the queue
       }
+    }
+  },
+
+  async scheduled(controller, env, _ctx): Promise<void> {
+    const logger = new ConsoleLogger();
+    logger.info("Relay catalog sync starting", { cron: controller.cron });
+    try {
+      await syncSystemRelayCatalog(env, logger);
+    } catch (err) {
+      logger.error("Relay catalog sync failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
     }
   },
 };

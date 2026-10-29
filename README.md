@@ -179,8 +179,8 @@ Success response: `["OK", "<event_id>", true, ""]`. See [docs/API.md](docs/API.m
 | Method              | Path         | Description                                                                                                          |
 | ------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `GET`               | `/`          | NIP-11 relay info when `Accept: application/nostr+json`; otherwise plain text.                                       |
-| `GET`               | `/health`    | Liveness probe. Returns `{ "status": "ok", "timestamp": "…" }`.                                                     |
-| `GET`               | `/ready`     | Readiness probe. Checks D1, KV, queue bindings; returns 503 if any fail.                                            |
+| `GET`               | `/health`    | Liveness probe. Returns `{ "status": "ok", "timestamp": "…" }`.                                                      |
+| `GET`               | `/ready`     | Readiness probe. Checks D1, KV, queue bindings; returns 503 if any fail.                                             |
 | `POST`              | `/event`     | Submit a Nostr event. Body: event object or `["EVENT", event]`. Returns Nostr `["OK", event_id, accepted, message]`. |
 | `GET` / `WebSocket` | `/` or `/ws` | Nostr WebSocket relay (event submission).                                                                            |
 
@@ -203,19 +203,21 @@ See [docs/API.md](docs/API.md) for request/response details.
 ## Configuration
 
 - **Entitlements** — Populate `blastr_entitlements` (e.g. from your subscription service). Only pubkeys with `status` in `active` or `grace` can publish.
-- **System relays** — Managed in `blastr_system_relays`. Seed data: `migrations/0003_seed_system_relays.sql`.
+- **System relays** — `blastr_system_relays`. Seed migrations are the cold start. A scheduled sync from NostrMash `GET /api/v1/relays/catalog` then owns membership and score (`distinct_users`). `operator_hold = 1` freezes `enabled`. Write health comes from publish attempts, not the catalog.
 - **User policy** — Per-pubkey mode and allow/block list in `blastr_user_policies` and `blastr_policy_relays`. Default: blacklist with no blocked relays.
 - **Event constraints** — Allowed Nostr event kinds: `0` (metadata), `1` (short note), `4` (NIP-04 DM), `6` (repost, NIP-18), `1059` (gift wrap), `1068` / `1018` (NIP-88 polls/votes, draft), `30023` (long-form, NIP-23). Max serialized event size: see `MAX_EVENT_SIZE` in `src/config/env.ts`.
 - **Environment variables** — See table below. Full validation in `src/config/env.ts` and bindings in `wrangler.toml`.
 
-| Variable               | Purpose                                      | Default / notes                                      |
-| ---------------------- | -------------------------------------------- | ---------------------------------------------------- |
-| `API_TOKEN`            | Protects admin routes; required when set     | If unset, admin routes are unprotected               |
-| `RATE_LIMIT_REQUESTS`  | Per-pubkey limit (ingress)                   | `100`                                                |
-| `RATE_LIMIT_WINDOW_MS` | Window for rate limit (ms)                   | `60000`                                              |
-| `CORS_ENABLED`         | Enable CORS for `/event` and admin           | `"true"` to enable                                   |
-| `CORS_ORIGINS`         | Allowed origins (comma-separated)            | Required if `CORS_ENABLED` is true                   |
-| `ENVIRONMENT`          | Label for logs (e.g. `production`, `staging`) | Optional                                             |
+| Variable                     | Purpose                                       | Default / notes                        |
+| ---------------------------- | --------------------------------------------- | -------------------------------------- |
+| `API_TOKEN`                  | Protects admin routes; required when set      | If unset, admin routes are unprotected |
+| `RATE_LIMIT_REQUESTS`        | Per-pubkey limit (ingress)                    | `100`                                  |
+| `RATE_LIMIT_WINDOW_MS`       | Window for rate limit (ms)                    | `60000`                                |
+| `CORS_ENABLED`               | Enable CORS for `/event` and admin            | `"true"` to enable                     |
+| `CORS_ORIGINS`               | Allowed origins (comma-separated)             | Required if `CORS_ENABLED` is true     |
+| `ENVIRONMENT`                | Label for logs (e.g. `production`, `staging`) | Optional                               |
+| `NOSTRMASH_API_BASE`         | NostrMash origin for the relay catalog cron   | Sync is skipped when unset             |
+| `BLASTR_RELAY_CATALOG_LIMIT` | Catalog page size                             | `50`, clamped to `1..100`              |
 
 ---
 
@@ -250,6 +252,7 @@ wrangler d1 create blastr-db
 
 wrangler d1 execute blastr-db --remote --file=./migrations/0002_blastr_tables.sql
 wrangler d1 execute blastr-db --remote --file=./migrations/0003_seed_system_relays.sql
+wrangler d1 execute blastr-db --remote --file=./migrations/0006_system_relay_operator_hold.sql
 ```
 
 For local dev, use `--local` instead of `--remote`.
@@ -331,9 +334,9 @@ Coverage thresholds are enforced in `vitest.config.ts`.
 | [docs/OPERATIONS.md](docs/OPERATIONS.md)                                 | SLOs, runbooks, health/readiness, fanout and poison-message handling. |
 | [docs/RELEASE.md](docs/RELEASE.md)                                       | Release process, version bump, changelog, and tagging.                |
 | [docs/openapi.yaml](docs/openapi.yaml)                                   | OpenAPI 3 spec for the HTTP API (validated in CI).                    |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                                       | How to run checks, write tests, and submit changes.                    |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                       | How to run checks, write tests, and submit changes.                   |
 | [SECURITY.md](SECURITY.md)                                               | Reporting vulnerabilities and scope.                                  |
-| [CHANGELOG.md](CHANGELOG.md)                                             | User-facing and breaking changes per release.                          |
+| [CHANGELOG.md](CHANGELOG.md)                                             | User-facing and breaking changes per release.                         |
 
 ---
 

@@ -11,6 +11,10 @@ export interface Env {
   CORS_ENABLED?: string;
   CORS_ORIGINS?: string;
   ENVIRONMENT?: string;
+  /** NostrMash origin, no path. Catalog sync is skipped when unset. */
+  NOSTRMASH_API_BASE?: string;
+  /** Catalog page size. Default 50, clamped to 1..100. */
+  BLASTR_RELAY_CATALOG_LIMIT?: string;
 }
 
 export interface CacheMetadata {

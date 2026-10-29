@@ -27,6 +27,7 @@ Behavior is entirely determined by the **event author’s pubkey**, not by clien
   - `POST /event` → publish handler (ingress pipeline)
   - `/admin/*` → admin API (entitlements, user policy, policy relays)
 - **`queue`** — Consumes messages from `blastr-publish-jobs`; for each message, runs fanout and acks or leaves for retry.
+- **`scheduled`** — Every 15 minutes, fetches the NostrMash relay catalog and updates system-relay membership. This does not run on the publish path.
 
 ### Ingress pipeline (`src/transport/pipeline.ts`)
 
@@ -92,7 +93,7 @@ Queue → consumer
 - **blastr_entitlements** — pubkey, plan_tier, status (active | grace | expired | suspended), rate_limit_profile.
 - **blastr_user_policies** — pubkey, mode (blacklist | whitelist), enabled.
 - **blastr_policy_relays** — pubkey, relay_url, action (allow | block).
-- **blastr_system_relays** — relay_url, enabled, health_status, score, category, last_checked_at.
+- **blastr_system_relays** — relay_url, enabled, health_status, score (catalog `distinct_users`), category, last_checked_at, operator_hold. Catalog sync updates membership and score. Publish attempts update health_status and last_checked_at.
 - **blastr_publish_jobs** — job id, event_id, pubkey, source, received_at, status, relay list snapshot, counts.
 - **blastr_publish_attempts** — job_id, relay_url, attempt_number (1-based retry attempt for that relay: 1 = first try, 2 = first retry, …), status, error_code, latency_ms.
 
@@ -103,7 +104,7 @@ KV: `PUBLISHED_NOTES` for dedupe (event id); `BLASTR_RATE_LIMIT` for rate-limit 
 ## Configuration and environment
 
 - **Bindings:** `PUBLISHED_NOTES` (KV, dedupe), `BLASTR_RATE_LIMIT` (KV, rate limits), `DB` (D1), `BLASTR_PUBLISH_QUEUE` (Queue). Required; validated at startup.
-- **Optional:** `API_TOKEN` (protects admin routes only; relay is gated by pubkey entitlement), `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `ENVIRONMENT`.
+- **Optional:** `API_TOKEN` (protects admin routes only; relay is gated by pubkey entitlement), `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `ENVIRONMENT`, `NOSTRMASH_API_BASE` (catalog origin), `BLASTR_RELAY_CATALOG_LIMIT` (default 50, clamped to 1..100).
 
 See `src/config/env.ts` and `wrangler.toml`.
 

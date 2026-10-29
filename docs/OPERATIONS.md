@@ -43,9 +43,18 @@ These are targets for tuning and alerting; adjust thresholds to your environment
 - **Symptom:** Many `fanout_failed` or `queue_message_retried` metrics; poison events in logs.
 - **Actions:**
   - Inspect `blastr_publish_attempts` and job status in D1 for failing job ids; note `error_code`, `relay_url`, and `attempt_number` (which try produced the outcome: 2 or 3 means a retry was used).
-  - Check system relay list (`blastr_system_relays`) and `health_status`; disable or fix unhealthy relays.
+  - Check system relay list (`blastr_system_relays`) and `health_status`. `failed` means three consecutive publish attempts failed. Catalog sync does not clear it. Set `health_status` back to `unknown` to try the relay again.
   - Verify user policy (blacklist/whitelist and policy relays) for the pubkey; ensure at least one relay is allowed.
   - For persistent poison messages: filter logs for `poison: true`, fix the underlying relay or data issue; re-publish the event if needed.
+
+### Relay catalog
+
+- **Source:** `GET {NOSTRMASH_API_BASE}/api/v1/relays/catalog`. Cron is every 15 minutes. A failed response, a bad body, or `"relays": []` leaves membership unchanged.
+- **Score** is `distinct_users`, not the catalog's float `score`.
+- **Operator pin** (keep a relay that leaves the catalog): `UPDATE blastr_system_relays SET operator_hold = 1, enabled = 1 WHERE relay_url = 'wss://...';`
+- **Operator disable** (do not turn it back on): `UPDATE blastr_system_relays SET operator_hold = 1, enabled = 0 WHERE relay_url = 'wss://...';`
+- **Return a relay to the catalog:** `UPDATE blastr_system_relays SET operator_hold = 0 WHERE relay_url = 'wss://...';`
+- The catalog is read liveness. It does not mean the relay will accept an EVENT.
 
 ### Rate limit or entitlement misconfiguration
 

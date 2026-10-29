@@ -4,7 +4,7 @@ import {
   recordFanoutLatencyMs,
   recordFanoutSuccess,
 } from "../observability/metrics";
-import { getJobById } from "../services/db";
+import { getJobById, recordSystemRelayWriteHealth } from "../services/db";
 import { createAttempt, updateJobStatus } from "../services/jobs";
 import type { Env, PublishJobMessage, SerializedNostrEvent } from "../types";
 
@@ -187,6 +187,69 @@ async function sendEventToRelay(
   return { ...last, attemptNumber: RELAY_MAX_RETRIES + 1 };
 }
 
+async function recordFanoutResults(
+  env: Env,
+  logger: Logger,
+  params: {
+    jobId: string;
+    jobIdNum: number;
+    relays: string[];
+    results: SendEventToRelayResult[];
+  },
+): Promise<{
+  successCount: number;
+  failedCount: number;
+  relayResults: Array<{
+    relay: string;
+    success: boolean;
+    errorCode?: string;
+    latencyMs: number;
+  }>;
+}> {
+  let successCount = 0;
+  let failedCount = 0;
+  const relayResults: Array<{
+    relay: string;
+    success: boolean;
+    errorCode?: string;
+    latencyMs: number;
+  }> = [];
+  for (let i = 0; i < params.relays.length; i++) {
+    const relayUrl = params.relays[i];
+    const result = params.results[i];
+    if (relayUrl === undefined || result === undefined) continue;
+    const status = result.success ? "ok" : "failed";
+    await createAttempt(env.DB, {
+      jobId: params.jobIdNum,
+      relayUrl,
+      attemptNumber: result.attemptNumber,
+      status,
+      errorCode: result.errorCode ?? null,
+      latencyMs: result.latencyMs,
+    });
+    await recordSystemRelayWriteHealth(env.DB, {
+      relayUrl,
+      success: result.success,
+    });
+    relayResults.push({
+      relay: relayUrl,
+      success: result.success,
+      errorCode: result.errorCode,
+      latencyMs: result.latencyMs,
+    });
+    logger.info("Fanout relay", {
+      jobId: params.jobId,
+      relay: relayUrl,
+      success: result.success,
+      errorCode: result.errorCode ?? null,
+      latencyMs: result.latencyMs,
+    });
+    if (result.success) successCount += 1;
+    else failedCount += 1;
+  }
+  return { successCount, failedCount, relayResults };
+}
+
 /**
  * Process one queue message: load job (for jobId -> DB updates), fan out to resolved relays, record attempts, update job status.
  */
@@ -223,11 +286,17 @@ export async function processQueueMessage(
   });
 
   if (relaysToUse.length === 0) {
-    logger.warn("Fanout skipped: no relays to send to — note will not appear on other relays. Check blastr_system_relays (D1) has enabled rows and, if user uses whitelist policy, that they have allowed relays.", {
-      jobId,
-      eventId: event.id,
+    logger.warn(
+      "Fanout skipped: no relays to send to — note will not appear on other relays. Check blastr_system_relays (D1) has enabled rows and, if user uses whitelist policy, that they have allowed relays.",
+      {
+        jobId,
+        eventId: event.id,
+      },
+    );
+    await updateJobStatus(env.DB, jobIdNum, "failed", {
+      success: 0,
+      failed: 0,
     });
-    await updateJobStatus(env.DB, jobIdNum, "failed", { success: 0, failed: 0 });
     recordFanoutFailed();
     recordFanoutLatencyMs(Date.now() - fanoutStartMs);
     return;
@@ -250,43 +319,16 @@ export async function processQueueMessage(
     (relayUrl) => sendEventToRelay(relayUrl, event),
   );
 
-  let successCount = 0;
-  let failedCount = 0;
-  const relayResults: Array<{
-    relay: string;
-    success: boolean;
-    errorCode?: string;
-    latencyMs: number;
-  }> = [];
-  for (let i = 0; i < relaysToUse.length; i++) {
-    const relayUrl = relaysToUse[i];
-    const result = results[i];
-    if (relayUrl === undefined || result === undefined) continue;
-    const status = result.success ? "ok" : "failed";
-    await createAttempt(env.DB, {
-      jobId: jobIdNum,
-      relayUrl,
-      attemptNumber: result.attemptNumber,
-      status,
-      errorCode: result.errorCode ?? null,
-      latencyMs: result.latencyMs,
-    });
-    relayResults.push({
-      relay: relayUrl,
-      success: result.success,
-      errorCode: result.errorCode,
-      latencyMs: result.latencyMs,
-    });
-    logger.info("Fanout relay", {
+  const { successCount, failedCount, relayResults } = await recordFanoutResults(
+    env,
+    logger,
+    {
       jobId,
-      relay: relayUrl,
-      success: result.success,
-      errorCode: result.errorCode ?? null,
-      latencyMs: result.latencyMs,
-    });
-    if (result.success) successCount += 1;
-    else failedCount += 1;
-  }
+      jobIdNum,
+      relays: relaysToUse,
+      results,
+    },
+  );
 
   const finalStatus =
     failedCount === 0 ? "success" : successCount === 0 ? "failed" : "partial";

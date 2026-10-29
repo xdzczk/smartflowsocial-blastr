@@ -29,6 +29,11 @@ max_batch_timeout = 1
 max_retries = 3
 visibility_timeout_ms = 30000
 
+# NostrMash catalog sync. Outside the publish path.
+# Set NOSTRMASH_API_BASE to the origin. Optional BLASTR_RELAY_CATALOG_LIMIT (default 50, max 100).
+[triggers]
+crons = ["*/15 * * * *"]
+
 [vars]
 ENVIRONMENT = "production"
 
@@ -54,6 +59,10 @@ max_batch_size = 50
 max_batch_timeout = 1
 max_retries = 3
 visibility_timeout_ms = 30000
+
+[env.staging.triggers]
+crons = ["*/15 * * * *"]
+
 [env.staging.vars]
 ENVIRONMENT = "staging"
 
