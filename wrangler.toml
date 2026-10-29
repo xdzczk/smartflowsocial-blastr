@@ -36,6 +36,7 @@ crons = ["*/15 * * * *"]
 
 [vars]
 ENVIRONMENT = "production"
+NOSTRMASH_API_BASE = "https://api.nostrmash.com"
 
 # Optional: routes when deploying to your domain
 # routes = [{ pattern = "blastr.smartflow.social/", zone_id = "YOUR_ZONE_ID" }]
@@ -65,6 +66,7 @@ crons = ["*/15 * * * *"]
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
+NOSTRMASH_API_BASE = "https://api.nostrmash.com"
 
 # Allow queue consumer to fan out to 100+ relays (default 30s is too low).
 # Max 300000 (5 min). 3 min is enough for 100+ relays at 8 concurrency.
