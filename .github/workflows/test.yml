@@ -49,7 +49,7 @@ jobs:
           profile: minimal
 
       - name: Setup trunk
-        uses: jetli/trunk-action@v0.1.0
+        uses: jetli/trunk-action@v0.5.1
         with:
           version: "latest"
 
