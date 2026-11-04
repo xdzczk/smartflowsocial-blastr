@@ -28,16 +28,60 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          set +e
+          pnpm install --frozen-lockfile > install.log 2>&1
+          code=$?
+          cat install.log
+          exit $code
 
       - name: Validate formatting, lint and typecheck
-        run: pnpm validate
+        run: |
+          set +e
+          pnpm validate > validate.log 2>&1
+          code=$?
+          cat validate.log
+          exit $code
 
       - name: Validate OpenAPI spec
-        run: pnpm exec -- npx --yes @redocly/cli@latest lint docs/openapi.yaml
+        run: |
+          set +e
+          pnpm exec -- npx --yes @redocly/cli@latest lint docs/openapi.yaml > openapi.log 2>&1
+          code=$?
+          cat openapi.log
+          exit $code
 
       - name: Audit dependencies
-        run: pnpm audit --audit-level=high
+        run: |
+          set +e
+          pnpm audit --audit-level=high > audit.log 2>&1
+          code=$?
+          cat audit.log
+          exit $code
+
+      - name: Comment with the failed command output
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const files = ['install.log', 'validate.log', 'openapi.log', 'audit.log'];
+            const parts = [];
+            for (const file of files) {
+              if (!fs.existsSync(file)) continue;
+              const text = fs.readFileSync(file, 'utf8').trim();
+              if (!text) continue;
+              parts.push(`### ${file}\n\n\`\`\`\n${text.slice(-4000)}\n\`\`\``);
+            }
+            const body = parts.length
+              ? `CI lint-and-typecheck failed.\n\n${parts.join('\n\n')}`
+              : 'CI lint-and-typecheck failed before it wrote a log.';
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body.slice(0, 65000),
+            });
 
   unit-and-integration-tests:
     needs: lint-and-typecheck
