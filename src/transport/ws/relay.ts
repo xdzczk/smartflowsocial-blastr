@@ -1,4 +1,5 @@
 import type { ExecutionContext } from "@cloudflare/workers-types";
+
 import type { Logger } from "../../logger";
 import type { Env, PublishJobSource } from "../../types";
 import { toNostrOk, mapErrorToNostrMessage } from "../http/mappers";
@@ -65,11 +66,16 @@ async function handleEventMessage(
 
   if (result.ok) {
     server.send(toNostrOk(result.eventId, true, ""));
-    if (result.enqueuePayload) {
+    const enqueuePayload = result.enqueuePayload;
+    if (enqueuePayload) {
       ctx.waitUntil(
-        runEnqueue(env, logger, result.enqueuePayload).catch((err) => {
-          logger.error("WS: enqueue failed", { error: err });
-        }),
+        (async () => {
+          try {
+            await runEnqueue(env, logger, enqueuePayload);
+          } catch (err) {
+            logger.error("WS: enqueue failed", { error: err });
+          }
+        })(),
       );
     }
   } else {
