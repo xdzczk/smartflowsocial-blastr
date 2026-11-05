@@ -115,6 +115,7 @@ const catalogRelays = [
 
 describe("clampCatalogLimit", () => {
   it("defaults to 50 and clamps numeric values to 1..100", () => {
+    // eslint-disable-next-line unicorn/no-useless-undefined -- undefined is the missing-input case
     expect(clampCatalogLimit(undefined)).toBe(50);
     expect(clampCatalogLimit("")).toBe(50);
     expect(clampCatalogLimit("  ")).toBe(50);
