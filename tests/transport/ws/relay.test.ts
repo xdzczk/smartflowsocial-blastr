@@ -1,3 +1,4 @@
+import type { ExecutionContext } from "@cloudflare/workers-types";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { BlastrError } from "../../../src/errors";
@@ -10,12 +11,14 @@ vi.mock("../../../src/transport/pipeline");
 
 function createMockServerWebSocket(): {
   send: ReturnType<typeof vi.fn>;
+  close: ReturnType<typeof vi.fn>;
   addEventListener: ReturnType<typeof vi.fn>;
   getMessageListener: () => ((event: MessageEvent) => void) | undefined;
   getCloseListener: () => (() => void) | undefined;
   getErrorListener: () => (() => void) | undefined;
 } {
   const send = vi.fn();
+  const close = vi.fn();
   let messageListener: ((event: MessageEvent) => void) | undefined;
   let closeListener: (() => void) | undefined;
   let errorListener: (() => void) | undefined;
@@ -29,6 +32,7 @@ function createMockServerWebSocket(): {
   );
   return {
     send,
+    close,
     addEventListener,
     getMessageListener: () => messageListener,
     getCloseListener: () => closeListener,
@@ -60,7 +64,12 @@ describe("handleWebSocketRelay message handling", () => {
     vi.clearAllMocks();
     mockServer = createMockServerWebSocket();
     env = mockEnv();
-    handleWebSocketRelay(mockServer as unknown as WebSocket, env, logger);
+    handleWebSocketRelay(
+      mockServer as unknown as WebSocket,
+      env,
+      logger,
+      { waitUntil: vi.fn() } as unknown as ExecutionContext,
+    );
   });
 
   async function sendClientMessage(data: string): Promise<void> {
@@ -218,6 +227,7 @@ describe("handleWebSocketRelay message handling", () => {
       "not-an-object",
       "external-client",
       logger,
+      { deferEnqueue: true },
     );
     const sent = getSentMessages();
     expect(sent).toHaveLength(1);
@@ -239,7 +249,12 @@ describe("handleWebSocketRelay close and error listeners", () => {
     mockServer = createMockServerWebSocket();
     vi.spyOn(logger, "info");
     vi.spyOn(logger, "warn");
-    handleWebSocketRelay(mockServer as unknown as WebSocket, env, logger);
+    handleWebSocketRelay(
+      mockServer as unknown as WebSocket,
+      env,
+      logger,
+      { waitUntil: vi.fn() } as unknown as ExecutionContext,
+    );
   });
 
   it("close listener logs and does not throw", () => {
