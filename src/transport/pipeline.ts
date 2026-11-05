@@ -173,9 +173,13 @@ export async function runIngressPipeline(
   await env.BLASTR_PUBLISH_QUEUE.send(message);
 
   // Don't block the response on KV write; respond to client immediately to avoid runtime "hung" timeout
-  void markPublished(event.id, env.PUBLISHED_NOTES).catch(() => {
-    /* best-effort dedupe; queue consumer will still process */
-  });
+  void (async () => {
+    try {
+      await markPublished(event.id, env.PUBLISHED_NOTES);
+    } catch {
+      /* best-effort dedupe; queue consumer will still process */
+    }
+  })();
 
   logger.info("Event accepted and queued", {
     eventId: event.id,

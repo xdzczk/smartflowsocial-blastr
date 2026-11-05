@@ -28,6 +28,7 @@ describe("isUsableSystemRelayHealth", () => {
     expect(isUsableSystemRelayHealth("ok")).toBe(true);
     expect(isUsableSystemRelayHealth("unknown")).toBe(true);
     expect(isUsableSystemRelayHealth(null)).toBe(true);
+    // eslint-disable-next-line unicorn/no-useless-undefined -- undefined is the missing-input case
     expect(isUsableSystemRelayHealth(undefined)).toBe(true);
     expect(isUsableSystemRelayHealth("")).toBe(true);
     expect(isUsableSystemRelayHealth("failed")).toBe(false);
