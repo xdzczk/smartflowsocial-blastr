@@ -1,15 +1,41 @@
-> prettier --check .
-All matched files use Prettier code style!
-   62:19  warning  Define a constant instead of duplicating this literal 4 times  sonarjs/no-duplicate-string
-  145:20  warning  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
-  53:48  warning  Always prefer const x: T = { ... }  @typescript-eslint/consistent-type-assertions
-  36:20  warning  Always prefer const x: T = { ... }                             @typescript-eslint/consistent-type-assertions
-  46:15  warning  Always prefer const x: T = { ... }                             @typescript-eslint/consistent-type-assertions
-  64:51  warning  Define a constant instead of duplicating this literal 3 times  sonarjs/no-duplicate-string
-✖ 6 problems (0 errors, 6 warnings)
-VALIDATE_EXIT:0
+=== audit ===
+��────┤
+│ Vulnerable versions │ >=1.0.0 <1.2.2                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=1.2.2                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>@vitest/coverage-v8>magicast>source-map-js           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-68fv-2mgg-jv7q      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
 │ high                │ sharp : Vulnerability in librsvg dependency            │
+│                     │ CVE-2026-96889                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ sharp                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <0.35.5                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=0.35.5                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>wrangler>miniflare>sharp                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-wq5f-xc86-pv6w      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
 │ high                │ launch-editor: `fs.existsSync()` existence check can   │
+│                     │ be bypassed on Windows                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ vite                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=8.0.0 <=8.1.5                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=8.1.6                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ .>vitest>vite                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-587h-7wmj-h5pm      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
 82 vulnerabilities found
 Severity: 4 low | 51 moderate | 27 high
 AUDIT_EXIT:1
