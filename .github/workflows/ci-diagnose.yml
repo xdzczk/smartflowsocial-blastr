@@ -3,48 +3,25 @@ on:
   push:
     branches: [ci-diagnose]
 jobs:
-  diagnose:
+  summarize:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.27.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - name: Format the failing test and raise the undici floor
+      - name: Record a short summary
         run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          pkg.pnpm.overrides.undici = '>=7.30.1';
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          NODE
-          pnpm install --no-frozen-lockfile
-          pnpm exec prettier --write tests/transport/ws/relay.test.ts
-      - name: Capture validate and audit
-        run: |
-          set +e
-          pnpm validate > validate.txt 2>&1
-          echo "VALIDATE_EXIT:$?" >> validate.txt
-          pnpm audit --audit-level=high > audit.txt 2>&1
-          echo "AUDIT_EXIT:$?" >> audit.txt
-          {
-            echo "=== validate ==="
-            tail -c 6000 validate.txt
-            echo
-            echo "=== audit ==="
-            tail -c 6000 audit.txt
-          } > ci-diagnose.txt
-          exit 0
-      - name: Publish fix
-        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('ci-diagnose.txt').read_text(errors='replace')
+          keep = []
+          for line in text.splitlines():
+              if any(token in line for token in ('EXIT', 'error', 'Error', 'warning', 'high', 'vulnerab', 'All matched', 'Code style', 'prettier')):
+                  keep.append(line[:240])
+          Path('diagnose-summary.md').write_text('\n'.join(keep[:80]) + '\n')
+          PY
           git config user.name "xdzczk"
           git config user.email "ivmitko@icloud.com"
-          git add package.json pnpm-lock.yaml tests/transport/ws/relay.test.ts ci-diagnose.txt
-          git commit -m "fix: format relay test and pin undici above the advisory"
+          git add diagnose-summary.md
+          git commit -m "chore: summarize ci diagnose"
           git push
