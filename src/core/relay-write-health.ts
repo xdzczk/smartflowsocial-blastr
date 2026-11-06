@@ -5,8 +5,28 @@
  */
 export const WRITE_HEALTH_FAILURE_THRESHOLD = 3;
 
+/**
+ * How long a failed relay stays out of the fanout.
+ * Catalog sync does not clear `failed`, and failed relays are not published to,
+ * so without this cooldown a relay would never return.
+ */
+export const WRITE_HEALTH_COOLDOWN_SECONDS = 24 * 60 * 60;
+
 export const WRITE_HEALTH_OK = "ok";
 export const WRITE_HEALTH_FAILED = "failed";
+
+/**
+ * Failed relays return after the cooldown. A missing check time is already due,
+ * so a failed row cannot stay out forever. Any other non-usable status stays out.
+ */
+export function isFailedRelayDueForRetry(
+  lastCheckedAt: number | null | undefined,
+  nowSeconds: number,
+  cooldownSeconds = WRITE_HEALTH_COOLDOWN_SECONDS,
+): boolean {
+  if (lastCheckedAt == null || !Number.isFinite(lastCheckedAt)) return true;
+  return nowSeconds - lastCheckedAt >= cooldownSeconds;
+}
 
 /**
  * Health to store after one fanout result.

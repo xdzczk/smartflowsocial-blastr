@@ -12,7 +12,7 @@ function mockD1(
   overrides: {
     first?: unknown;
     all?: { results: unknown[]; meta?: { last_row_id?: number } };
-    runMeta?: { last_row_id: number };
+    runMeta?: { last_row_id: number; changes?: number };
   } = {},
 ): D1Database {
   const chain = {
@@ -102,6 +102,23 @@ describe("jobs", () => {
         resolvedRelays: [WSS_R],
       });
       expect(id).toBe(123);
+    });
+  });
+
+  describe("failStalePublishJobs", () => {
+    it("fails queued and processing jobs older than the cutoff", async () => {
+      const now = 10_000;
+      const maxAge = 3600;
+      const d1 = mockD1({ runMeta: { last_row_id: 0, changes: 4 } });
+      const changed = await jobs.failStalePublishJobs(d1, now, maxAge);
+      expect(changed).toBe(4);
+      expect(d1.prepare).toHaveBeenCalledWith(
+        expect.stringContaining("status IN ('queued', 'processing')"),
+      );
+      const prepared = vi.mocked(d1.prepare).mock.results[0]?.value as {
+        bind: ReturnType<typeof vi.fn>;
+      };
+      expect(prepared.bind).toHaveBeenCalledWith(now - maxAge);
     });
   });
 

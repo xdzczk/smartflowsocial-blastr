@@ -6,11 +6,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Env } from "../../src/types";
 
+function statement(): {
+  bind: () => ReturnType<typeof statement>;
+  all: () => Promise<{ results: [] }>;
+  run: () => Promise<{ meta: { changes: number } }>;
+  first: () => Promise<null>;
+} {
+  const stmt = {
+    bind: () => stmt,
+    all: () => Promise.resolve({ results: [] as [] }),
+    run: () => Promise.resolve({ meta: { changes: 0 } }),
+    first: () => Promise.resolve(null),
+  };
+  return stmt;
+}
+
 function minimalEnv(overrides: Partial<Env> = {}): {
   env: Env;
   prepare: ReturnType<typeof vi.fn>;
 } {
-  const prepare = vi.fn();
+  const prepare = vi.fn(() => statement());
   const base = {
     PUBLISHED_NOTES: {
       get: vi.fn().mockResolvedValue(null),
@@ -39,6 +54,12 @@ const controller = {
   noRetry: vi.fn(),
 } as ScheduledController;
 
+const STALE_JOB_UPDATE = "blastr_publish_jobs";
+
+function sqlCalls(prepare: ReturnType<typeof vi.fn>): string[] {
+  return prepare.mock.calls.map((call) => String(call[0]));
+}
+
 async function runScheduled(env: Env): Promise<void> {
   const mod = await import("../../src/index");
   const handler = mod.default;
@@ -59,7 +80,9 @@ describe("scheduled relay catalog sync", () => {
     vi.stubGlobal("fetch", fetchUnset);
     await runScheduled(unset.env);
     expect(fetchUnset).not.toHaveBeenCalled();
-    expect(unset.prepare).not.toHaveBeenCalled();
+    expect(sqlCalls(unset.prepare)).toEqual([
+      expect.stringContaining(STALE_JOB_UPDATE),
+    ]);
 
     const down = minimalEnv({ NOSTRMASH_API_BASE: "https://catalog.example" });
     vi.stubGlobal(
@@ -67,7 +90,9 @@ describe("scheduled relay catalog sync", () => {
       vi.fn(async () => new Response("unavailable", { status: 503 })),
     );
     await runScheduled(down.env);
-    expect(down.prepare).not.toHaveBeenCalled();
+    expect(sqlCalls(down.prepare)).toEqual([
+      expect.stringContaining(STALE_JOB_UPDATE),
+    ]);
 
     const empty = minimalEnv({ NOSTRMASH_API_BASE: "https://catalog.example" });
     vi.stubGlobal(
@@ -85,7 +110,9 @@ describe("scheduled relay catalog sync", () => {
       ),
     );
     await runScheduled(empty.env);
-    expect(empty.prepare).not.toHaveBeenCalled();
+    expect(sqlCalls(empty.prepare)).toEqual([
+      expect.stringContaining(STALE_JOB_UPDATE),
+    ]);
   });
 
   it("retries the cron when D1 fails after a real catalog", async () => {
