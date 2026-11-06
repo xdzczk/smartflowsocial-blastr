@@ -9,19 +9,17 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Record a short summary
+      - name: Extract audit package names
         run: |
           python3 - <<'PY'
           from pathlib import Path
           text = Path('ci-diagnose.txt').read_text(errors='replace')
-          keep = []
-          for line in text.splitlines():
-              if any(token in line for token in ('EXIT', 'error', 'Error', 'warning', 'high', 'vulnerab', 'All matched', 'Code style', 'prettier')):
-                  keep.append(line[:240])
-          Path('diagnose-summary.md').write_text('\n'.join(keep[:80]) + '\n')
+          idx = text.rfind('=== audit ===')
+          audit = text[idx:] if idx >= 0 else text
+          Path('diagnose-summary.md').write_text(audit[-7000:])
           PY
           git config user.name "xdzczk"
           git config user.email "ivmitko@icloud.com"
           git add diagnose-summary.md
-          git commit -m "chore: summarize ci diagnose"
+          git commit -m "chore: include the audit section"
           git push
