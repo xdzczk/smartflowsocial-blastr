@@ -1,0 +1,60 @@
+name: CI diagnose
+
+on:
+  push:
+    branches:
+      - ci-diagnose
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Capture validate, OpenAPI, and audit
+        run: |
+          set +e
+          pnpm install --frozen-lockfile > install.txt 2>&1
+          echo "INSTALL_EXIT:$?" >> install.txt
+          pnpm validate > validate.txt 2>&1
+          echo "VALIDATE_EXIT:$?" >> validate.txt
+          pnpm exec -- npx --yes @redocly/cli@latest lint docs/openapi.yaml > openapi.txt 2>&1
+          echo "OPENAPI_EXIT:$?" >> openapi.txt
+          pnpm audit --audit-level=high > audit.txt 2>&1
+          echo "AUDIT_EXIT:$?" >> audit.txt
+          {
+            echo "=== install ==="
+            tail -c 6000 install.txt
+            echo
+            echo "=== validate ==="
+            tail -c 12000 validate.txt
+            echo
+            echo "=== openapi ==="
+            tail -c 6000 openapi.txt
+            echo
+            echo "=== audit ==="
+            tail -c 6000 audit.txt
+          } > ci-diagnose.txt
+          exit 0
+
+      - name: Publish the log
+        run: |
+          git config user.name "xdzczk"
+          git config user.email "ivmitko@icloud.com"
+          git add ci-diagnose.txt
+          git commit -m "chore: record ci diagnose log"
+          git push
