@@ -1,60 +1,50 @@
 name: CI diagnose
-
 on:
   push:
-    branches:
-      - ci-diagnose
-
+    branches: [ci-diagnose]
 jobs:
   diagnose:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10.27.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-
-      - name: Capture validate, OpenAPI, and audit
+      - name: Format the failing test and raise the undici floor
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.pnpm.overrides.undici = '>=7.30.1';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+          pnpm install --no-frozen-lockfile
+          pnpm exec prettier --write tests/transport/ws/relay.test.ts
+      - name: Capture validate and audit
         run: |
           set +e
-          pnpm install --frozen-lockfile > install.txt 2>&1
-          echo "INSTALL_EXIT:$?" >> install.txt
           pnpm validate > validate.txt 2>&1
           echo "VALIDATE_EXIT:$?" >> validate.txt
-          pnpm exec -- npx --yes @redocly/cli@latest lint docs/openapi.yaml > openapi.txt 2>&1
-          echo "OPENAPI_EXIT:$?" >> openapi.txt
           pnpm audit --audit-level=high > audit.txt 2>&1
           echo "AUDIT_EXIT:$?" >> audit.txt
           {
-            echo "=== install ==="
-            tail -c 6000 install.txt
-            echo
             echo "=== validate ==="
-            tail -c 12000 validate.txt
-            echo
-            echo "=== openapi ==="
-            tail -c 6000 openapi.txt
+            tail -c 6000 validate.txt
             echo
             echo "=== audit ==="
             tail -c 6000 audit.txt
           } > ci-diagnose.txt
           exit 0
-
-      - name: Publish the log
+      - name: Publish fix
         run: |
           git config user.name "xdzczk"
           git config user.email "ivmitko@icloud.com"
-          git add ci-diagnose.txt
-          git commit -m "chore: record ci diagnose log"
+          git add package.json pnpm-lock.yaml tests/transport/ws/relay.test.ts ci-diagnose.txt
+          git commit -m "fix: format relay test and pin undici above the advisory"
           git push
