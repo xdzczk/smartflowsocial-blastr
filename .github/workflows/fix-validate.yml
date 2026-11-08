@@ -1,0 +1,66 @@
+name: Format blastr and refresh overrides
+
+on:
+  push:
+    branches:
+      - fix/blastr-validate
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, 'fix: format blastr and refresh overrides') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/blastr-validate
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Format, refresh the lockfile, and record audit results
+        env:
+          HUSKY: "0"
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("package.json")
+          data = json.loads(path.read_text())
+          overrides = data.setdefault("pnpm", {}).setdefault("overrides", {})
+          overrides["undici"] = ">=7.30.1"
+          overrides["source-map-js"] = ">=1.2.2"
+          path.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+          pnpm install --no-frozen-lockfile --ignore-scripts
+          pnpm exec prettier --write .
+          set +e
+          pnpm validate > validate.log 2>&1
+          validate_exit=$?
+          pnpm audit --prod --audit-level=high > audit-prod.log 2>&1
+          audit_prod_exit=$?
+          pnpm audit --audit-level=high > audit.log 2>&1
+          audit_exit=$?
+          set -e
+          printf 'validate=%s\naudit_prod=%s\naudit=%s\n' "$validate_exit" "$audit_prod_exit" "$audit_exit" > fix-results.txt
+          git config user.name "xdzczk"
+          git config user.email "ivmitko@icloud.com"
+          git add -u
+          git add package.json pnpm-lock.yaml validate.log audit-prod.log audit.log fix-results.txt
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "fix: format blastr and refresh overrides"
+          git push origin HEAD:fix/blastr-validate
