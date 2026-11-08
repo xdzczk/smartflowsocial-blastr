@@ -1,13 +1,14 @@
 name: Format blastr and refresh overrides
 
 on:
+  pull_request:
   push:
     branches:
       - fix/blastr-validate
 
 jobs:
   fix:
-    if: ${{ !contains(github.event.head_commit.message, 'fix: format blastr and refresh overrides') }}
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, 'fix: format blastr and refresh overrides') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -33,6 +34,10 @@ jobs:
           HUSKY: "0"
         run: |
           set -euo pipefail
+          if [ -f fix-results.txt ]; then
+            echo "already recorded"
+            exit 0
+          fi
           python3 - <<'PY'
           import json
           from pathlib import Path
