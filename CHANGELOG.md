@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ## Unreleased
 
 - **Added** — Ingress accepts NIP-88 poll and vote kinds **1068** and **1018** (draft NIP), so SmartFlowSocial and other clients can publish polls/votes through Blastr like other allowed kinds.
+- **Fixed** — Documented ingress rate-limit default is 60 requests per window, matching `DEFAULT_REQUESTS_PER_WINDOW`.
+- **Changed** — Fresh D1 setup applies migrations `0002` through `0006`. `0000` and `0001` are not part of this schema.
+- **Changed** — `wrangler.toml` resource ids are `REPLACE_WITH_*` placeholders.
 
 ## 1.0.0 — 2025-03-12
 

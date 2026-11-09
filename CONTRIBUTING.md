@@ -74,7 +74,7 @@ Ensure `pnpm prepare` has been run (it runs automatically after `pnpm install`).
 
 - Update the README or `docs/` if you change behavior, config, or APIs.
 - The design and architecture are described in `docs/SFS_BROADCAST_RELAY_DESIGN.md` and `docs/ARCHITECTURE.md`; align with those when touching core flow or data model.
-- **Changelog:** Add an entry under the **Unreleased** section in [CHANGELOG.md](../CHANGELOG.md) for any user-facing or breaking change (API, config, behavior). Releases follow semver; tags are `v1.0.0`, etc.
+- **Changelog:** Add an entry under the **Unreleased** section in [CHANGELOG.md](CHANGELOG.md) for any user-facing or breaking change (API, config, behavior). Releases follow semver; tags are `v1.0.0`, etc.
 
 ## Questions
 
