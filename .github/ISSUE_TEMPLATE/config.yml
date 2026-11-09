@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/xdzczk/smartflowsocial-blastr/security/advisories/new
+    about: Report a vulnerability privately. Email security@smartflow.social if you cannot use advisories.
+  - name: Question or idea
+    url: https://github.com/xdzczk/smartflowsocial-blastr/discussions
+    about: Ask a question or talk through an idea before opening a feature request.

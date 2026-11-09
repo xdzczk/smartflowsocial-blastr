@@ -1,11 +1,13 @@
 # Blastr
 
-[![CI](https://github.com/xdzczk/vibe-blastr/actions/workflows/ci.yml/badge.svg)](https://github.com/xdzczk/vibe-blastr/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node 20+](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
+[![CI](https://github.com/xdzczk/smartflowsocial-blastr/actions/workflows/ci.yml/badge.svg)](https://github.com/xdzczk/smartflowsocial-blastr/actions/workflows/ci.yml)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
+[![Node 20+](https://img.shields.io/badge/node-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/maintained%20with-pnpm-cc00ff.svg)](https://pnpm.io/)
 
 Blastr is the **SmartFlowSocial broadcast relay** — a write-focused managed Nostr relay that accepts signed Nostr events (WebSocket or HTTP), enforces **pubkey-scoped entitlement** (paid subscription), applies per-pubkey **relay policy** (blacklist/whitelist), and fans out to a bounded **system relay universe**—all keyed by the event author’s pubkey, so behavior is consistent from any client (SFS app, Damus, Coracle, etc.).
+
+Part of [SmartFlowSocial](https://smartflow.social). Related pieces: [app](https://github.com/xdzczk/smartflowsocial), [publisher](https://github.com/xdzczk/smartflowsocial-publisher), [Blossom](https://github.com/xdzczk/smartflowsocial-blossom), [cache worker](https://github.com/xdzczk/smartflowsocial-cache-worker).
 
 **Why Blastr?** If you run a Nostr app and want paid subscribers to broadcast to a curated set of relays from any client (your app, Damus, etc.) with one consistent policy and entitlement check, Blastr is the relay in the middle: it gates by pubkey, resolves the relay set, and fans out asynchronously. [Nostr](https://nostr.com) is a decentralized protocol; see the [NIPs](https://github.com/nostr-protocol/nips) for the relay and event spec.
 
@@ -110,8 +112,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SFS_BROADCAST_RELAY_D
 
 ```bash
 # Clone the repo (use your fork or the canonical URL)
-git clone https://github.com/xdzczk/vibe-blastr.git
-cd vibe-blastr
+git clone https://github.com/xdzczk/smartflowsocial-blastr.git
+cd smartflowsocial-blastr
 pnpm install
 
 # Validate (format, lint, typecheck)
@@ -363,4 +365,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run checks, write tests, and s
 
 ## License
 
-Licensed under the **MIT License**. See [LICENSE](LICENSE) for the full text.
+Released into the public domain under the [Unlicense](LICENSE). This project follows the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues through [SECURITY.md](SECURITY.md).

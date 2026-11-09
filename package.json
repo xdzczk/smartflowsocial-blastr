@@ -2,6 +2,17 @@
   "name": "blastr",
   "version": "1.0.0",
   "private": true,
+  "description": "Broadcast relay for SmartFlowSocial. Gates signed Nostr events by pubkey entitlement and fans them out to a curated relay set.",
+  "author": "SmartFlowSocial",
+  "license": "Unlicense",
+  "homepage": "https://smartflow.social",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xdzczk/smartflowsocial-blastr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xdzczk/smartflowsocial-blastr/issues"
+  },
   "packageManager": "pnpm@10.27.0",
   "engines": {
     "node": ">=20.0.0"

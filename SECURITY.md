@@ -1,25 +1,26 @@
-# Security
+# Security Policy
 
-## Reporting vulnerabilities
+## Supported versions
 
-If you believe you have found a security vulnerability in Blastr, please report it responsibly.
+Security fixes ship on the latest `main` commit.
 
-- **Preferred:** Open a [GitHub Security Advisory](https://github.com/xdzczk/vibe-blastr/security/advisories/new) in this repository (or the canonical Blastr repo if different). This allows private disclosure and coordinated release.
-- **Alternative:** Email the maintainers (see repository description or owner profile) with a clear description of the issue, steps to reproduce, and impact. Do not open a public issue for unfixed security vulnerabilities.
+## Reporting a vulnerability
 
-## What to expect
+Do not open a public GitHub issue for an unfixed vulnerability.
 
-- We will acknowledge your report as soon as practicable.
-- We aim to provide an initial assessment within a reasonable timeframe (e.g. within a few business days).
-- We will work with you to understand and fix the issue and will credit you in any advisory or release notes unless you prefer to remain anonymous.
-- We may follow a coordinated disclosure process (fix first, then public advisory) for critical issues.
+- Email **security@smartflow.social**, or
+- Open a [private GitHub security advisory](https://github.com/xdzczk/smartflowsocial-blastr/security/advisories/new)
+
+Include a description, steps to reproduce, impact, and a suggested fix if you have one.
 
 ## Scope
 
-- Blastr worker code, configuration, and dependencies are in scope.
-- Out-of-scope: issues in Cloudflare’s infrastructure, Nostr protocol design, or third-party relays we fan out to (except where our integration is at fault).
+The Blastr worker, its configuration, and its dependencies are in scope. Cloudflare’s own infrastructure, the Nostr protocol, and third-party relays are out of scope unless the bug is in how Blastr integrates with them.
 
-## Dependency hygiene
+## Response
 
-- We run `pnpm audit` in CI and fail on high/critical vulnerabilities where possible.
-- We encourage dependency updates and use of Dependabot or Renovate for automated PRs.
+- Initial response within 2 business days
+- Status update within 7 days
+- Public disclosure after a fix is available
+
+We will credit you in the advisory unless you ask to stay anonymous.

@@ -79,3 +79,7 @@ Ensure `pnpm prepare` has been run (it runs automatically after `pnpm install`).
 ## Questions
 
 For project-specific questions or access, reach out to the maintainers or open an issue.
+
+## Code of conduct
+
+This project follows the [SmartFlowSocial Code of Conduct](CODE_OF_CONDUCT.md). Report unacceptable behavior to **conduct@smartflow.social**.
