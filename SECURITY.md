@@ -8,7 +8,7 @@ Security fixes ship on the latest `main` commit.
 
 Do not open a public GitHub issue for an unfixed vulnerability.
 
-- Email **security@smartflow.social**, or
+- Message us on Nostr at `npub1ckqlguq0htvs3smwy8pl5uwmfas0h208p7p8hs92ghaurgkmzzrsw3vlh0`, or
 - Open a [private GitHub security advisory](https://github.com/xdzczk/smartflowsocial-blastr/security/advisories/new)
 
 Include a description, steps to reproduce, impact, and a suggested fix if you have one.
