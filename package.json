@@ -47,8 +47,8 @@
     ]
   },
   "dependencies": {
-    "hono": "^4.12.25",
-    "nostr-tools": "^2.19.4"
+    "hono": "^4.13.17",
+    "nostr-tools": "^2.26.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20231218.0",
