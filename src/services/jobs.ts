@@ -82,6 +82,31 @@ export async function createJob(
   return result.meta.last_row_id;
 }
 
+/** Queue retries finish in minutes. Older queued or processing rows have no message left. */
+export const STALE_PUBLISH_JOB_SECONDS = 60 * 60;
+
+/**
+ * Mark publish jobs failed when they have been queued or processing past the cutoff.
+ * Returns the number of rows changed.
+ */
+export async function failStalePublishJobs(
+  db: D1Database,
+  nowSeconds = Math.floor(Date.now() / 1000),
+  maxAgeSeconds = STALE_PUBLISH_JOB_SECONDS,
+): Promise<number> {
+  const cutoff = nowSeconds - maxAgeSeconds;
+  const result = await db
+    .prepare(
+      `UPDATE blastr_publish_jobs
+       SET status = 'failed'
+       WHERE status IN ('queued', 'processing')
+         AND received_at < ?`,
+    )
+    .bind(cutoff)
+    .run();
+  return result.meta.changes;
+}
+
 export async function updateJobStatus(
   db: D1Database,
   jobId: number,

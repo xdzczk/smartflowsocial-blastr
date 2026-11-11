@@ -64,12 +64,9 @@ describe("handleWebSocketRelay message handling", () => {
     vi.clearAllMocks();
     mockServer = createMockServerWebSocket();
     env = mockEnv();
-    handleWebSocketRelay(
-      mockServer as unknown as WebSocket,
-      env,
-      logger,
-      { waitUntil: vi.fn() } as unknown as ExecutionContext,
-    );
+    handleWebSocketRelay(mockServer as unknown as WebSocket, env, logger, {
+      waitUntil: vi.fn(),
+    } as unknown as ExecutionContext);
   });
 
   async function sendClientMessage(data: string): Promise<void> {
@@ -249,12 +246,9 @@ describe("handleWebSocketRelay close and error listeners", () => {
     mockServer = createMockServerWebSocket();
     vi.spyOn(logger, "info");
     vi.spyOn(logger, "warn");
-    handleWebSocketRelay(
-      mockServer as unknown as WebSocket,
-      env,
-      logger,
-      { waitUntil: vi.fn() } as unknown as ExecutionContext,
-    );
+    handleWebSocketRelay(mockServer as unknown as WebSocket, env, logger, {
+      waitUntil: vi.fn(),
+    } as unknown as ExecutionContext);
   });
 
   it("close listener logs and does not throw", () => {

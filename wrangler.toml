@@ -3,19 +3,17 @@ main = "src/index.ts"
 compatibility_date = "2026-03-13"
 compatibility_flags = ["nodejs_compat"]
 
-# KV: PUBLISHED_NOTES = dedupe (event id); BLASTR_RATE_LIMIT = rate limits
-# Create BLASTR_RATE_LIMIT with: wrangler kv:namespace create BLASTR_RATE_LIMIT (and --preview for preview_id)
+# KV: PUBLISHED_NOTES = dedupe (event id); BLASTR_RATE_LIMIT = rate limits.
+# Wrangler 4 provisions these on deploy. Ids stay in the Cloudflare account.
 kv_namespaces = [
-  { binding = "PUBLISHED_NOTES", id = "40c2f54b70ab43e3b66312ba52552938", preview_id = "ec9ef70420f2432d97cc8145d30c758a" },
-  { binding = "BLASTR_RATE_LIMIT", id = "a892de3494cb45f5986badedfcbde622", preview_id = "9dd075c2952d4d9d9b62882846cce97c" },
+  { binding = "PUBLISHED_NOTES" },
+  { binding = "BLASTR_RATE_LIMIT" },
 ]
 
 # D1 for blastr_* tables (jobs, policy, catalog, etc.)
-# database_id must be from the same Cloudflare account as your deploy (see README Setup).
 [[d1_databases]]
 binding = "DB"
 database_name = "blastr-db"
-database_id = "abb73ea1-e9ba-4d6b-966a-ffbb8d7a731e"
 
 # Single publish queue (create with: wrangler queues create blastr-publish-jobs)
 [[queues.producers]]
@@ -44,13 +42,12 @@ NOSTRMASH_API_BASE = "https://api.nostrmash.com"
 [env.staging]
 name = "blastr-staging"
 kv_namespaces = [
-  { binding = "PUBLISHED_NOTES", id = "40c2f54b70ab43e3b66312ba52552938", preview_id = "ec9ef70420f2432d97cc8145d30c758a" },
-  { binding = "BLASTR_RATE_LIMIT", id = "REPLACE_WITH_STAGING_ID", preview_id = "REPLACE_WITH_STAGING_PREVIEW_ID" },
+  { binding = "PUBLISHED_NOTES" },
+  { binding = "BLASTR_RATE_LIMIT" },
 ]
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "blastr-db-staging"
-database_id = "ba4c227b-edf2-46a4-99fa-4b7bfa036800"
 [[env.staging.queues.producers]]
 queue = "blastr-publish-jobs"
 binding = "BLASTR_PUBLISH_QUEUE"
