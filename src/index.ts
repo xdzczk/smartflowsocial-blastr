@@ -17,6 +17,7 @@ import {
   recordQueueMessageAcked,
   recordQueueMessageRetried,
 } from "./observability/metrics";
+import { failStalePublishJobs } from "./services/jobs";
 import { checkAdminRateLimit } from "./services/rate-limit";
 import {
   requireAdminAuth,
@@ -270,6 +271,10 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
 
   async scheduled(controller, env, _ctx): Promise<void> {
     const logger = new ConsoleLogger();
+    const staleJobs = await failStalePublishJobs(env.DB);
+    if (staleJobs > 0) {
+      logger.info("Marked stale publish jobs failed", { count: staleJobs });
+    }
     logger.info("Relay catalog sync starting", { cron: controller.cron });
     try {
       await syncSystemRelayCatalog(env, logger);

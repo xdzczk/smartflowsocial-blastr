@@ -1,11 +1,13 @@
 # Blastr
 
-[![CI](https://github.com/xdzczk/vibe-blastr/actions/workflows/ci.yml/badge.svg)](https://github.com/xdzczk/vibe-blastr/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node 20+](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
+[![CI](https://github.com/xdzczk/smartflowsocial-blastr/actions/workflows/ci.yml/badge.svg)](https://github.com/xdzczk/smartflowsocial-blastr/actions/workflows/ci.yml)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue)](LICENSE)
+[![Node 20+](https://img.shields.io/badge/node-20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/maintained%20with-pnpm-cc00ff.svg)](https://pnpm.io/)
 
 Blastr is the **SmartFlowSocial broadcast relay** — a write-focused managed Nostr relay that accepts signed Nostr events (WebSocket or HTTP), enforces **pubkey-scoped entitlement** (paid subscription), applies per-pubkey **relay policy** (blacklist/whitelist), and fans out to a bounded **system relay universe**—all keyed by the event author’s pubkey, so behavior is consistent from any client (SFS app, Damus, Coracle, etc.).
+
+Part of [SmartFlowSocial](https://smartflow.social). Related pieces: [app](https://github.com/xdzczk/smartflowsocial), [publisher](https://github.com/xdzczk/smartflowsocial-publisher), [Blossom](https://github.com/xdzczk/smartflowsocial-blossom), [cache worker](https://github.com/xdzczk/smartflowsocial-cache-worker).
 
 **Why Blastr?** If you run a Nostr app and want paid subscribers to broadcast to a curated set of relays from any client (your app, Damus, etc.) with one consistent policy and entitlement check, Blastr is the relay in the middle: it gates by pubkey, resolves the relay set, and fans out asynchronously. [Nostr](https://nostr.com) is a decentralized protocol; see the [NIPs](https://github.com/nostr-protocol/nips) for the relay and event spec.
 
@@ -47,6 +49,8 @@ Blastr is the **SmartFlowSocial broadcast relay** — a write-focused managed No
 ---
 
 ## Architecture
+
+![Blastr architecture](docs/images/blastr-diagram.png)
 
 ```
                     ┌─────────────────────────────────────────────────────────┐
@@ -90,17 +94,17 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SFS_BROADCAST_RELAY_D
 
 ## Tech stack
 
-| Layer       | Technology                                                                  |
-| ----------- | --------------------------------------------------------------------------- |
-| Runtime     | Cloudflare Workers (Node compat)                                            |
-| Language    | TypeScript (strict, ES2022)                                                 |
-| Database    | Cloudflare D1 (SQLite)                                                      |
-| Cache / KV  | Cloudflare KV (dedupe: PUBLISHED_NOTES; rate limits: BLASTR_RATE_LIMIT)     |
-| Queue       | Cloudflare Queues                                                           |
-| Nostr       | [nostr-tools](https://github.com/nostr-dev-kit/ndk) (parsing, verification) |
-| Tests       | Vitest (unit, integration, coverage)                                        |
-| Lint/format | ESLint (flat config), Prettier                                              |
-| Git hooks   | Husky + lint-staged                                                         |
+| Layer       | Technology                                                                    |
+| ----------- | ----------------------------------------------------------------------------- |
+| Runtime     | Cloudflare Workers (Node compat)                                              |
+| Language    | TypeScript (strict, ES2022)                                                   |
+| Database    | Cloudflare D1 (SQLite)                                                        |
+| Cache / KV  | Cloudflare KV (dedupe: PUBLISHED_NOTES; rate limits: BLASTR_RATE_LIMIT)       |
+| Queue       | Cloudflare Queues                                                             |
+| Nostr       | [nostr-tools](https://github.com/nbd-wtf/nostr-tools) (parsing, verification) |
+| Tests       | Vitest (unit, integration, coverage)                                          |
+| Lint/format | ESLint (flat config), Prettier                                                |
+| Git hooks   | Husky + lint-staged                                                           |
 
 ---
 
@@ -110,8 +114,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SFS_BROADCAST_RELAY_D
 
 ```bash
 # Clone the repo (use your fork or the canonical URL)
-git clone https://github.com/xdzczk/vibe-blastr.git
-cd vibe-blastr
+git clone https://github.com/xdzczk/smartflowsocial-blastr.git
+cd smartflowsocial-blastr
 pnpm install
 
 # Validate (format, lint, typecheck)
@@ -142,7 +146,7 @@ curl -s -H "Accept: application/nostr+json" http://localhost:8787/
 curl -s http://localhost:8787/health
 ```
 
-**Submit a Nostr event** (requires the event’s pubkey to be entitled in `blastr_entitlements`). Body is a signed Nostr event object or `["EVENT", event]`. Replace `id`, `pubkey`, and `sig` with a real signed event (e.g. from [nostr-tools](https://github.com/nostr-dev-kit/ndk) or your Nostr client):
+**Submit a Nostr event** (requires the event’s pubkey to be entitled in `blastr_entitlements`). Body is a signed Nostr event object or `["EVENT", event]`. Replace `id`, `pubkey`, and `sig` with a real signed event (e.g. from [nostr-tools](https://github.com/nbd-wtf/nostr-tools) or your Nostr client):
 
 ```bash
 curl -s -X POST http://localhost:8787/event \
@@ -208,20 +212,26 @@ See [docs/API.md](docs/API.md) for request/response details.
 - **Event constraints** — Allowed Nostr event kinds: `0` (metadata), `1` (short note), `4` (NIP-04 DM), `6` (repost, NIP-18), `1059` (gift wrap), `1068` / `1018` (NIP-88 polls/votes, draft), `30023` (long-form, NIP-23). Max serialized event size: see `MAX_EVENT_SIZE` in `src/config/env.ts`.
 - **Environment variables** — See table below. Full validation in `src/config/env.ts` and bindings in `wrangler.toml`.
 
-| Variable                     | Purpose                                       | Default / notes                        |
-| ---------------------------- | --------------------------------------------- | -------------------------------------- |
-| `API_TOKEN`                  | Protects admin routes; required when set      | If unset, admin routes are unprotected |
-| `RATE_LIMIT_REQUESTS`        | Per-pubkey limit (ingress)                    | `100`                                  |
-| `RATE_LIMIT_WINDOW_MS`       | Window for rate limit (ms)                    | `60000`                                |
-| `CORS_ENABLED`               | Enable CORS for `/event` and admin            | `"true"` to enable                     |
-| `CORS_ORIGINS`               | Allowed origins (comma-separated)             | Required if `CORS_ENABLED` is true     |
-| `ENVIRONMENT`                | Label for logs (e.g. `production`, `staging`) | Optional                               |
-| `NOSTRMASH_API_BASE`         | NostrMash origin for the relay catalog cron   | Sync is skipped when unset             |
-| `BLASTR_RELAY_CATALOG_LIMIT` | Catalog page size                             | `50`, clamped to `1..100`              |
+| Variable                     | Purpose                                     | Default / notes                        |
+| ---------------------------- | ------------------------------------------- | -------------------------------------- |
+| `API_TOKEN`                  | Protects admin routes; required when set    | If unset, admin routes are unprotected |
+| `RATE_LIMIT_REQUESTS`        | Per-pubkey limit (ingress)                  | `60`                                   |
+| `RATE_LIMIT_WINDOW_MS`       | Window for rate limit (ms)                  | `60000`                                |
+| `CORS_ENABLED`               | Enable CORS for `/event` and admin          | `"true"` to enable                     |
+| `CORS_ORIGINS`               | Allowed origins (comma-separated)           | Required if `CORS_ENABLED` is true     |
+| `ENVIRONMENT`                | Present in `wrangler.toml`                  | Not read by the worker                 |
+| `NOSTRMASH_API_BASE`         | NostrMash origin for the relay catalog cron | Sync is skipped when unset             |
+| `BLASTR_RELAY_CATALOG_LIMIT` | Catalog page size                           | `50`, clamped to `1..100`              |
+| `DB`                         | D1 binding                                  | Required                               |
+| `PUBLISHED_NOTES`            | KV binding, event-id dedupe                 | Required                               |
+| `BLASTR_RATE_LIMIT`          | KV binding, rate-limit counters             | Required                               |
+| `BLASTR_PUBLISH_QUEUE`       | Queue binding for publish jobs              | Required                               |
 
 ---
 
 ## First-time setup (before first deploy)
+
+Checked-in `wrangler.toml` ids are placeholders. `wrangler deploy` fails until you replace `REPLACE_WITH_PUBLISHED_NOTES_KV_ID`, `REPLACE_WITH_PUBLISHED_NOTES_KV_PREVIEW_ID`, `REPLACE_WITH_BLASTR_RATE_LIMIT_KV_ID`, `REPLACE_WITH_BLASTR_RATE_LIMIT_KV_PREVIEW_ID`, `REPLACE_WITH_BLASTR_D1_ID`, and the `REPLACE_WITH_STAGING_*` values under `[env.staging]`.
 
 **Production deploy checklist:** (1) Create Queue and KV namespaces in the same Cloudflare account you deploy from; (2) Create D1, run migrations, add IDs to `wrangler.toml`; (3) Set `API_TOKEN` (and optionally `CORS_ORIGINS`) as secrets or in env; (4) Run `pnpm deploy`. See [docs/OPERATIONS.md](docs/OPERATIONS.md) for runbooks.
 
@@ -252,10 +262,14 @@ wrangler d1 create blastr-db
 
 wrangler d1 execute blastr-db --remote --file=./migrations/0002_blastr_tables.sql
 wrangler d1 execute blastr-db --remote --file=./migrations/0003_seed_system_relays.sql
+wrangler d1 execute blastr-db --remote --file=./migrations/0004_blastr_publish_jobs_event_id_unique.sql
+wrangler d1 execute blastr-db --remote --file=./migrations/0005_seed_top50_system_relays.sql
 wrangler d1 execute blastr-db --remote --file=./migrations/0006_system_relay_operator_hold.sql
 ```
 
 For local dev, use `--local` instead of `--remote`.
+
+`migrations/0000_events.sql` and `migrations/0001_tag.sql` create a generic `event` / `tag` schema this worker does not read. Do not apply them.
 
 ### KV
 
@@ -309,6 +323,7 @@ Staging: `wrangler deploy --env staging` (uses `env.staging` in `wrangler.toml`)
 | `pnpm test:unit`        | Unit tests (core, services, utils, logger). |
 | `pnpm test:integration` | Integration tests (transport, integration). |
 | `pnpm test:security`    | Security tests.                             |
+| `pnpm test:e2e`         | End-to-end tests under `tests/e2e`.         |
 | `pnpm test:watch`       | Vitest watch mode.                          |
 | `pnpm test:coverage`    | Vitest with coverage report.                |
 
@@ -363,4 +378,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to run checks, write tests, and s
 
 ## License
 
-Licensed under the **MIT License**. See [LICENSE](LICENSE) for the full text.
+Released into the public domain under the [Unlicense](LICENSE). This project follows the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues through [SECURITY.md](SECURITY.md).

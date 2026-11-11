@@ -74,8 +74,12 @@ Ensure `pnpm prepare` has been run (it runs automatically after `pnpm install`).
 
 - Update the README or `docs/` if you change behavior, config, or APIs.
 - The design and architecture are described in `docs/SFS_BROADCAST_RELAY_DESIGN.md` and `docs/ARCHITECTURE.md`; align with those when touching core flow or data model.
-- **Changelog:** Add an entry under the **Unreleased** section in [CHANGELOG.md](../CHANGELOG.md) for any user-facing or breaking change (API, config, behavior). Releases follow semver; tags are `v1.0.0`, etc.
+- **Changelog:** Add an entry under the **Unreleased** section in [CHANGELOG.md](CHANGELOG.md) for any user-facing or breaking change (API, config, behavior). Releases follow semver; tags are `v1.0.0`, etc.
 
 ## Questions
 
 For project-specific questions or access, reach out to the maintainers or open an issue.
+
+## Code of conduct
+
+This project follows the [SmartFlowSocial Code of Conduct](CODE_OF_CONDUCT.md). Report unacceptable behavior on Nostr at `npub1ckqlguq0htvs3smwy8pl5uwmfas0h208p7p8hs92ghaurgkmzzrsw3vlh0`.

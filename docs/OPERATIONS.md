@@ -43,7 +43,8 @@ These are targets for tuning and alerting; adjust thresholds to your environment
 - **Symptom:** Many `fanout_failed` or `queue_message_retried` metrics; poison events in logs.
 - **Actions:**
   - Inspect `blastr_publish_attempts` and job status in D1 for failing job ids; note `error_code`, `relay_url`, and `attempt_number` (which try produced the outcome: 2 or 3 means a retry was used).
-  - Check system relay list (`blastr_system_relays`) and `health_status`. `failed` means three consecutive publish attempts failed. Catalog sync does not clear it. Set `health_status` back to `unknown` to try the relay again.
+  - Check system relay list (`blastr_system_relays`) and `health_status`. `failed` means three consecutive publish attempts failed. The relay stays out of the fanout for 24 hours after `last_checked_at`, then it is tried again. A success sets `ok`. Catalog sync does not clear `failed`. To retry immediately: `UPDATE blastr_system_relays SET health_status = 'unknown' WHERE relay_url = 'wss://...';`
+  - The 15-minute cron marks `queued` or `processing` jobs older than one hour as `failed`. Those rows have no queue message left.
   - Verify user policy (blacklist/whitelist and policy relays) for the pubkey; ensure at least one relay is allowed.
   - For persistent poison messages: filter logs for `poison: true`, fix the underlying relay or data issue; re-publish the event if needed.
 

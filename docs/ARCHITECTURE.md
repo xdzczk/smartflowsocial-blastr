@@ -104,7 +104,7 @@ KV: `PUBLISHED_NOTES` for dedupe (event id); `BLASTR_RATE_LIMIT` for rate-limit 
 ## Configuration and environment
 
 - **Bindings:** `PUBLISHED_NOTES` (KV, dedupe), `BLASTR_RATE_LIMIT` (KV, rate limits), `DB` (D1), `BLASTR_PUBLISH_QUEUE` (Queue). Required; validated at startup.
-- **Optional:** `API_TOKEN` (protects admin routes only; relay is gated by pubkey entitlement), `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `ENVIRONMENT`, `NOSTRMASH_API_BASE` (catalog origin), `BLASTR_RELAY_CATALOG_LIMIT` (default 50, clamped to 1..100).
+- **Optional:** `API_TOKEN` (protects admin routes only; relay is gated by pubkey entitlement), `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_MS`, `CORS_ENABLED`, `CORS_ORIGINS`, `NOSTRMASH_API_BASE` (catalog origin), `BLASTR_RELAY_CATALOG_LIMIT` (default 50, clamped to 1..100). `ENVIRONMENT` is set in `wrangler.toml` and is not read by the worker.
 
 See `src/config/env.ts` and `wrangler.toml`.
 

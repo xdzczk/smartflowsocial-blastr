@@ -213,9 +213,9 @@ This gives you a clear blueprint to implement the SFS Broadcast Relay in TypeScr
 
 ---
 
-## Aligning with vibe-\* codebases
+## Aligning with the other SmartFlowSocial services
 
-For consistent structure and quality with **vibe-http-nostr-publisher** and **vibe-cdn-master**:
+For consistent structure and quality with **smartflowsocial-publisher** and **smartflowsocial-blossom**:
 
 - **Structure:** Use `src/core/` (EventValidator, policy/resolve, relay-catalog), `src/transport/` (http/handlers, http/mappers, pipeline, queue), `src/services/` (db, jobs, rate-limit, dedupe), `src/config/env.ts`, top-level `errors.ts`, `types.ts`, `logger.ts`, and `src/middleware/cors.ts`. Tests mirror under `tests/core/`, `tests/transport/`, `tests/services/`, `tests/security/`, `tests/integration/`.
 - **Tooling:** pnpm (packageManager 10.27.0), Node >=20; TypeScript strict with noUncheckedIndexedAccess, noImplicitOverride; ESLint flat config with tier1/tier2 rules, import/order, no-secrets; Prettier; Vitest with coverage thresholds; husky + lint-staged; scripts: validate (format:check + lint + typecheck), precheck, test:unit, test:integration.
