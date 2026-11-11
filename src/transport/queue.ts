@@ -75,20 +75,49 @@ export function __setRunWithConcurrencyForTesting(
   _runWithConcurrencyImpl = fn;
 }
 
+type RelaySendResult = {
+  success: boolean;
+  errorCode?: string;
+  latencyMs: number;
+};
+
+/**
+ * Release an outbound relay socket. A queue consumer stays alive until every
+ * WebSocket closes, so a timed-out relay otherwise holds the invocation until
+ * the 15-minute wall limit.
+ */
+function closeSocket(ws: WebSocket | undefined): void {
+  if (ws === undefined || ws.readyState === WebSocket.CLOSED) return;
+  try {
+    ws.close(1000, "done");
+  } catch {
+    // Already closing or closed.
+  }
+}
+
 /**
  * Send one event to one relay via WebSocket, return { success, errorCode?, latencyMs }.
  */
 async function sendEventToRelayOnce(
   relayUrl: string,
   event: SerializedNostrEvent,
-): Promise<{ success: boolean; errorCode?: string; latencyMs: number }> {
+): Promise<RelaySendResult> {
   const start = Date.now();
   return new Promise((resolve) => {
-    let resolved = false;
-    const timeout = setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      resolve({
+    let settled = false;
+    let ws: WebSocket | undefined;
+
+    const finish = (result: RelaySendResult): void => {
+      if (settled) return;
+      // Set this before close so a synchronous close event cannot replace the result.
+      settled = true;
+      clearTimeout(timer);
+      closeSocket(ws);
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => {
+      finish({
         success: false,
         errorCode: "timeout",
         latencyMs: Date.now() - start,
@@ -96,22 +125,21 @@ async function sendEventToRelayOnce(
     }, RELAY_SEND_TIMEOUT_MS);
 
     try {
-      const ws = new WebSocket(relayUrl);
+      const socket = new WebSocket(relayUrl);
+      ws = socket;
       const payload = JSON.stringify(["EVENT", event]);
 
-      ws.addEventListener("open", () => {
-        ws.send(payload);
+      socket.addEventListener("open", () => {
+        if (settled) return;
+        socket.send(payload);
       });
 
-      ws.addEventListener("message", (ev: MessageEvent) => {
-        if (resolved) return;
+      socket.addEventListener("message", (ev: MessageEvent) => {
+        if (settled) return;
         try {
           const msg = JSON.parse(ev.data as string) as unknown[];
           if (msg[0] === "OK" && msg[1] === event.id) {
-            resolved = true;
-            clearTimeout(timeout);
-            ws.close();
-            resolve({
+            finish({
               success: (msg[2] as boolean) === true,
               errorCode: (msg[3] as string) || undefined,
               latencyMs: Date.now() - start,
@@ -122,31 +150,23 @@ async function sendEventToRelayOnce(
         }
       });
 
-      ws.addEventListener("error", () => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(timeout);
-        resolve({
+      socket.addEventListener("error", () => {
+        finish({
           success: false,
           errorCode: "connection_error",
           latencyMs: Date.now() - start,
         });
       });
 
-      ws.addEventListener("close", () => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(timeout);
-        resolve({
+      socket.addEventListener("close", () => {
+        finish({
           success: false,
           errorCode: "closed",
           latencyMs: Date.now() - start,
         });
       });
     } catch (err) {
-      resolved = true;
-      clearTimeout(timeout);
-      resolve({
+      finish({
         success: false,
         errorCode: err instanceof Error ? err.message : "error",
         latencyMs: Date.now() - start,

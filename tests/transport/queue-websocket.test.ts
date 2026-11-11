@@ -14,10 +14,17 @@ interface MockWSInstance {
   open: WsListener | null;
   message: WsListener | null;
   error: WsListener | null;
-  close: WsListener | null;
+  closeListener: WsListener | null;
   send: (data: string) => void;
+  close: (code?: number, reason?: string) => void;
+  emitClose: () => void;
+  readyState: number;
+  closeCalls: number;
+  lastCloseCode?: number;
+  lastCloseReason?: string;
   _accept: boolean;
   _replyWithWrongId: boolean;
+  _autoReply: boolean;
 }
 
 function createMockWebSocket(): {
@@ -26,14 +33,25 @@ function createMockWebSocket(): {
 } {
   const instances: MockWSInstance[] = [];
   class MockWS implements MockWSInstance {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSING = 2;
+    static CLOSED = 3;
+
     open: WsListener | null = null;
     message: WsListener | null = null;
     error: WsListener | null = null;
-    close: WsListener | null = null;
+    closeListener: WsListener | null = null;
+    readyState = MockWS.CONNECTING;
+    closeCalls = 0;
+    lastCloseCode?: number;
+    lastCloseReason?: string;
     _accept = true;
     _replyWithWrongId = false;
+    _autoReply = true;
 
     send = (data: string): void => {
+      if (!this._autoReply) return;
       try {
         const arr = JSON.parse(data) as unknown[];
         if (
@@ -56,11 +74,22 @@ function createMockWebSocket(): {
       }
     };
 
+    close = (code?: number, reason?: string): void => {
+      this.closeCalls += 1;
+      this.lastCloseCode = code;
+      this.lastCloseReason = reason;
+      this.readyState = MockWS.CLOSED;
+    };
+
+    emitClose = (): void => {
+      this.closeListener?.();
+    };
+
     addEventListener(ev: string, fn: WsListener): void {
       if (ev === "open") this.open = fn;
       if (ev === "message") this.message = fn;
       if (ev === "error") this.error = fn;
-      if (ev === "close") this.close = fn;
+      if (ev === "close") this.closeListener = fn;
     }
 
     constructor() {
@@ -136,6 +165,7 @@ describe("processQueueMessage with real WebSocket path", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     (
       globalThis as unknown as { WebSocket: typeof OriginalWebSocket }
     ).WebSocket = OriginalWebSocket;
@@ -158,6 +188,9 @@ describe("processQueueMessage with real WebSocket path", () => {
       "success",
       { success: 1, failed: 0 },
     );
+    expect(ws?.closeCalls).toBe(1);
+    expect(ws?.lastCloseCode).toBe(1000);
+    expect(ws?.readyState).toBe(3);
   });
 
   it("records failed relay when WebSocket triggers error (connection_error)", async () => {
@@ -211,7 +244,7 @@ describe("processQueueMessage with real WebSocket path", () => {
       mock.instances.forEach((ws) => {
         ws._replyWithWrongId = true;
         ws.open?.();
-        ws.close?.();
+        ws.emitClose();
       });
     };
     const interval = setInterval(triggerCloseAll, 50);
@@ -256,7 +289,7 @@ describe("processQueueMessage with real WebSocket path", () => {
     const done = processQueueMessage(baseMessage, env(), logger);
 
     const triggerAll = (): void => {
-      mock.instances.forEach((ws) => ws.close?.());
+      mock.instances.forEach((ws) => ws.emitClose());
     };
     const interval = setInterval(triggerAll, 50);
     await new Promise((r) => setImmediate(r));
@@ -272,4 +305,33 @@ describe("processQueueMessage with real WebSocket path", () => {
       { success: 0, failed: 1 },
     );
   }, 15000);
+
+  it("closes the socket when the relay never answers", async () => {
+    vi.useFakeTimers();
+    const done = processQueueMessage(baseMessage, env(), logger);
+
+    await vi.advanceTimersByTimeAsync(16_500);
+    await done;
+
+    expect(jobs.createAttempt).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "failed",
+        errorCode: "timeout",
+        attemptNumber: 3,
+      }),
+    );
+    expect(mock.instances).toHaveLength(3);
+    expect(
+      mock.instances.every(
+        (ws) => ws.closeCalls === 1 && ws.lastCloseCode === 1000,
+      ),
+    ).toBe(true);
+    expect(jobs.updateJobStatus).toHaveBeenLastCalledWith(
+      expect.anything(),
+      1,
+      "failed",
+      { success: 0, failed: 1 },
+    );
+  });
 });
