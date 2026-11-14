@@ -156,6 +156,41 @@ describe("Auth (API_TOKEN)", () => {
     globalThis.Response = OriginalResponse;
   });
 
+  it("Admin PUT /admin/entitlements/:pubkey returns 401 when API_TOKEN is missing", async () => {
+    const mod = await import("../../src/index");
+    const handler = mod.default;
+    if (!handler.fetch) throw new Error(ERR_FETCH_UNDEFINED);
+    const env = envWithToken(API_TOKEN_SECRET);
+    env.API_TOKEN = undefined;
+    const request = new Request("http://localhost/admin/entitlements/abc", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan_tier: "default", status: "active" }),
+    });
+    const ctx = {} as ExecutionContext;
+    type Req = Request<unknown, IncomingRequestCfProperties<unknown>>;
+    const response = await handler.fetch(request as Req, env, ctx);
+    expect(response.status).toBe(401);
+    expect(db.upsertEntitlement).not.toHaveBeenCalled();
+  });
+
+  it("POST /event still accepts a signed client when API_TOKEN is missing", async () => {
+    const mod = await import("../../src/index");
+    const handler = mod.default;
+    if (!handler.fetch) throw new Error(ERR_FETCH_UNDEFINED);
+    const env = envWithToken(API_TOKEN_SECRET);
+    env.API_TOKEN = undefined;
+    const request = new Request(EVENT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(["EVENT", validEvent]),
+    });
+    const ctx = {} as ExecutionContext;
+    type Req = Request<unknown, IncomingRequestCfProperties<unknown>>;
+    const response = await handler.fetch(request as Req, env, ctx);
+    expect(response.status).toBe(200);
+  });
+
   it("Admin PUT /admin/entitlements/:pubkey returns 401 when API_TOKEN set and no token", async () => {
     const mod = await import("../../src/index");
     const handler = mod.default;

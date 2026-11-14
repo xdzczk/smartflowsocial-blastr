@@ -12,20 +12,36 @@ const CONTENT_TYPE_JSON = "application/json";
 const CODE_INVALID_JSON = "invalid_json";
 const ERROR_INVALID_JSON = "Invalid JSON";
 
-/** Return 401 response if API_TOKEN is set and request does not provide it. */
-export function requireAdminAuth(request: Request, env: Env): Response | null {
-  if (!env.API_TOKEN) return null;
-  const authHeader = request.headers.get("Authorization");
-  const auth =
-    authHeader?.startsWith("Bearer ") === true
-      ? authHeader.slice(7)
-      : request.headers.get("X-API-TOKEN");
-  if (auth !== env.API_TOKEN) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized", code: "unauthorized" }),
-      { status: 401, headers: { "Content-Type": CONTENT_TYPE_JSON } },
-    );
+function tokensEqual(provided: string, expected: string): boolean {
+  if (provided.length === 0 || provided.length !== expected.length)
+    return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i += 1) {
+    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
   }
+  return diff === 0;
+}
+
+function unauthorized(): Response {
+  return new Response(
+    JSON.stringify({ error: "Unauthorized", code: "unauthorized" }),
+    { status: 401, headers: { "Content-Type": CONTENT_TYPE_JSON } },
+  );
+}
+
+/**
+ * Admin routes are fail-closed. A missing API_TOKEN rejects the request.
+ * Ordinary event publishing does not use this check.
+ */
+export function requireAdminAuth(request: Request, env: Env): Response | null {
+  const expected = env.API_TOKEN?.trim() ?? "";
+  if (!expected) return unauthorized();
+  const authHeader = request.headers.get("Authorization");
+  const provided =
+    authHeader?.startsWith("Bearer ") === true
+      ? authHeader.slice(7).trim()
+      : (request.headers.get("X-API-TOKEN")?.trim() ?? "");
+  if (!tokensEqual(provided, expected)) return unauthorized();
   return null;
 }
 

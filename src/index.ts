@@ -143,7 +143,7 @@ const handler: ExportedHandler<Env, PublishJobMessage> = {
       }
     }
 
-    // Admin: require API_TOKEN when set, rate limit, then dispatch
+    // Admin routes fail closed when API_TOKEN is missing. /event stays open for signed clients.
     const segments = url.pathname.split("/").filter(Boolean);
     if (segments[0] === "admin") {
       const authFailure = requireAdminAuth(request, env);

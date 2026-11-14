@@ -45,9 +45,11 @@ export function validateEnvironment(
       "Missing required binding: BLASTR_PUBLISH_QUEUE. Create queue with: wrangler queues create blastr-publish-jobs",
     );
   }
-  if (!env.API_TOKEN) {
+  if (!env.API_TOKEN?.trim()) {
     logger.warn(
-      "API_TOKEN not set - admin routes are unprotected. Set API_TOKEN to protect the admin API.",
+      env.ENVIRONMENT === "production"
+        ? "API_TOKEN is not set in production. Admin routes fail closed and reject every request."
+        : "API_TOKEN is not set. Admin routes fail closed and reject every request.",
     );
   }
   validateNumericEnv(

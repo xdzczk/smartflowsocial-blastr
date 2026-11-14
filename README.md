@@ -212,20 +212,20 @@ See [docs/API.md](docs/API.md) for request/response details.
 - **Event constraints** — Allowed Nostr event kinds: `0` (metadata), `1` (short note), `4` (NIP-04 DM), `6` (repost, NIP-18), `1059` (gift wrap), `1068` / `1018` (NIP-88 polls/votes, draft), `30023` (long-form, NIP-23). Max serialized event size: see `MAX_EVENT_SIZE` in `src/config/env.ts`.
 - **Environment variables** — See table below. Full validation in `src/config/env.ts` and bindings in `wrangler.toml`.
 
-| Variable                     | Purpose                                     | Default / notes                        |
-| ---------------------------- | ------------------------------------------- | -------------------------------------- |
-| `API_TOKEN`                  | Protects admin routes; required when set    | If unset, admin routes are unprotected |
-| `RATE_LIMIT_REQUESTS`        | Per-pubkey limit (ingress)                  | `60`                                   |
-| `RATE_LIMIT_WINDOW_MS`       | Window for rate limit (ms)                  | `60000`                                |
-| `CORS_ENABLED`               | Enable CORS for `/event` and admin          | `"true"` to enable                     |
-| `CORS_ORIGINS`               | Allowed origins (comma-separated)           | Required if `CORS_ENABLED` is true     |
-| `ENVIRONMENT`                | Present in `wrangler.toml`                  | Not read by the worker                 |
-| `NOSTRMASH_API_BASE`         | NostrMash origin for the relay catalog cron | Sync is skipped when unset             |
-| `BLASTR_RELAY_CATALOG_LIMIT` | Catalog page size                           | `50`, clamped to `1..100`              |
-| `DB`                         | D1 binding                                  | Required                               |
-| `PUBLISHED_NOTES`            | KV binding, event-id dedupe                 | Required                               |
-| `BLASTR_RATE_LIMIT`          | KV binding, rate-limit counters             | Required                               |
-| `BLASTR_PUBLISH_QUEUE`       | Queue binding for publish jobs              | Required                               |
+| Variable                     | Purpose                                        | Default / notes                                                           |
+| ---------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
+| `API_TOKEN`                  | Protects admin routes. Required for admin use. | If unset, admin routes return 401. `POST /event` does not use this token. |
+| `RATE_LIMIT_REQUESTS`        | Per-pubkey limit (ingress)                     | `60`                                                                      |
+| `RATE_LIMIT_WINDOW_MS`       | Window for rate limit (ms)                     | `60000`                                                                   |
+| `CORS_ENABLED`               | Enable CORS for `/event` and admin             | `"true"` to enable                                                        |
+| `CORS_ORIGINS`               | Allowed origins (comma-separated)              | Required if `CORS_ENABLED` is true                                        |
+| `ENVIRONMENT`                | Used in the missing-token warning              | Admin routes fail closed in every environment                             |
+| `NOSTRMASH_API_BASE`         | NostrMash origin for the relay catalog cron    | Sync is skipped when unset                                                |
+| `BLASTR_RELAY_CATALOG_LIMIT` | Catalog page size                              | `50`, clamped to `1..100`                                                 |
+| `DB`                         | D1 binding                                     | Required                                                                  |
+| `PUBLISHED_NOTES`            | KV binding, event-id dedupe                    | Required                                                                  |
+| `BLASTR_RATE_LIMIT`          | KV binding, rate-limit counters                | Required                                                                  |
+| `BLASTR_PUBLISH_QUEUE`       | Queue binding for publish jobs                 | Required                                                                  |
 
 ---
 
